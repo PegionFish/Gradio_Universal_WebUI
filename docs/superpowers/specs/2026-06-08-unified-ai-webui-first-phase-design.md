@@ -1411,7 +1411,26 @@ dev = [
 - 验证任务持久化
 - 验证 GPU 仪表盘
 
-## 12. 向第二阶段演进
+## 12. 模块化开发文档
+
+主设计文档定义整体架构和组件关系。**具体到可执行的实现细节在以下模块文档中：**
+
+| # | 模块 | 文件 | 行数 | 内容 |
+|---|------|------|------|------|
+| 1 | 项目骨架与 CLI | [modules/01-bootstrap-cli.md](modules/01-bootstrap-cli.md) | 272 | main.py, 目录结构, pyproject.toml, 启动序列 |
+| 2 | 配置系统 | [modules/02-configuration.md](modules/02-configuration.md) | 316 | ConfigService, YAML schema, 校验规则 |
+| 3 | 服务注册与事件 | [modules/03-service-registry-eventbus.md](modules/03-service-registry-eventbus.md) | 200 | ServiceRegistry, EventBus, 线程安全 |
+| 4 | 日志系统 | [modules/04-logging.md](modules/04-logging.md) | 174 | logging 配置, 轮转, 服务日志 |
+| 5 | 进程管理与健康检查 | [modules/05-process-manager-health-checker.md](modules/05-process-manager-health-checker.md) | 320 | ProcessManager, HealthChecker, 后台线程 |
+| 6 | 任务管理与结果存储 | [modules/06-task-scheduler-result-manager.md](modules/06-task-scheduler-result-manager.md) | 341 | TaskScheduler (SQLite), ResultManager |
+| 7 | GPU 监控 | [modules/07-gpu-monitor.md](modules/07-gpu-monitor.md) | 273 | GpuMonitor (NVML), 推荐引擎 |
+| 8 | 适配器框架 | [modules/08-adapter-framework.md](modules/08-adapter-framework.md) | 244 | BaseModelAdapter, 占位适配器 |
+| 9 | WebUI 主程序组装 | [modules/09-webui-assembly.md](modules/09-webui-assembly.md) | 202 | app.py, state.py, 页面注册 |
+| 10 | WebUI 页面 | [modules/10-webui-pages.md](modules/10-webui-pages.md) | 733 | 9 个页面文件的完整布局和回调 |
+
+**模块间依赖关系和推荐实现顺序** 见 [modules/README.md](modules/README.md)。
+
+## 13. 向第二阶段演进
 
 第二阶段应将占位适配器升级为真实的 HTTP 模型服务。
 
@@ -1428,7 +1447,7 @@ dev = [
 - 添加可选的 Docker Compose 部署
 - 若对外开放局域网，添加认证功能
 
-## 13. 开放决策
+## 14. 开放决策
 
 - Python 环境策略：venv、conda 还是容器化服务
 - Stable Diffusion 后端选型
