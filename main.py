@@ -85,22 +85,20 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("适配器已注册")
 
     # 5. 启动后台线程
-    from core import process_manager, health_checker, registry, config
-    from core.gpu_monitor import GpuMonitor
+    from core import process_manager, health_checker, gpu_monitor, config
 
     process_manager.start_worker()
     process_manager.start_watcher()
     health_checker.start(
         interval_seconds=config.get_refresh_setting("health_check_seconds", 10)
     )
-
-    gpu_monitor = GpuMonitor()
     gpu_monitor.start(
         interval_seconds=config.get_refresh_setting("gpu_metrics_seconds", 5)
     )
     logger.info("后台线程已启动 (ProcessManager, HealthChecker, GpuMonitor)")
 
     # 6. 自动启动 enabled 服务
+    from core import registry
     for svc in registry.list_services():
         if svc.enabled and svc.start_command:
             logger.info("自动启动服务: %s", svc.id)
@@ -108,11 +106,20 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Step 6: 自动启动服务完成")
 
     # 7. 构建并启动 WebUI
-    #    (implemented in Module 9: WebUI Assembly)
-    logger.info("Step 7: 构建 WebUI (pending Module 9)")
+    from webui.app import create_app, launch_app
+
+    app = create_app()
+    host = args.host or config.get_server_setting("host", "0.0.0.0")
+    port = args.port or config.get_server_setting("port", 7860)
+    logger.info("WebUI 启动于 http://%s:%s", host, port)
+    launch_app(app, host=host, port=port)
 
     # 8. 关闭清理
-    logger.info("启动序列完成 (当前功能为桩实现)")
+    logger.info("正在关闭...")
+    process_manager.stop_all()
+    health_checker.stop()
+    gpu_monitor.shutdown()
+    logger.info("关闭完成")
     return 0
 
 
