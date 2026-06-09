@@ -78,17 +78,21 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # 5. 启动后台线程
-    #    core.process_manager.start()           - worker thread
-    #    core.process_manager.start_watcher()   - process monitoring
-    #    health_checker.start()                 - health probing
-    #    gpu_monitor.start()                    - GPU metrics collection
-    #    (implemented in Module 5: Process Manager & Health Checker)
-    #    (implemented in Module 7: GPU Monitor)
-    logger.info("Step 5: 后台线程 (pending Module 5,7)")
+    from core import process_manager, health_checker, registry, config
+    process_manager.start_worker()
+    process_manager.start_watcher()
+    health_checker.start(
+        interval_seconds=config.get_refresh_setting("health_check_seconds", 10)
+    )
+    # gpu_monitor.start()  (Module 7: GPU Monitor)
+    logger.info("后台线程已启动 (ProcessManager, HealthChecker)")
 
     # 6. 自动启动 enabled 服务
-    #    (implemented in Module 5)
-    logger.info("Step 6: 自动启动服务 (pending Module 5)")
+    for svc in registry.list_services():
+        if svc.enabled and svc.start_command:
+            logger.info("自动启动服务: %s", svc.id)
+            process_manager.start(svc.id)
+    logger.info("Step 6: 自动启动服务完成")
 
     # 7. 构建并启动 WebUI
     #    (implemented in Module 9: WebUI Assembly)
