@@ -125,13 +125,18 @@ def main(argv: list[str] | None = None) -> int:
     # 2. 初始化日志系统
     #    (实现在 模块 4：日志系统)
 
-    # 3. 加载配置
-    #    (实现在 模块 2：配置系统)
+    # 3. 初始化核心服务
+    #    core.setup_core(config_dir=args.config or "config/")
+    #    (创建 ConfigService、ServiceRegistry、ProcessManager 等实例)
 
-    # 4. 初始化 ServiceRegistry
-    #    (实现在 模块 3：服务注册与事件)
+    # 4. 加载配置并初始化 ServiceRegistry
+    #    (实现在 模块 2：配置系统、模块 3：服务注册与事件)
 
     # 5. 启动后台线程
+    #    core.process_manager.start()           — 工作线程
+    #    core.process_manager.start_watcher()   — 进程监控
+    #    health_checker.start()                 — 健康探测
+    #    gpu_monitor.start()                    — GPU 采集
     #    (实现在 模块 5：进程管理与健康检查)
     #    (实现在 模块 7：GPU 监控)
 
@@ -166,7 +171,6 @@ dependencies = [
     "pyyaml>=6.0",
     "nvidia-ml-py>=12.0",
     "aiohttp>=3.9",
-    "aiosqlite>=0.20",
 ]
 
 [project.optional-dependencies]
@@ -197,24 +201,28 @@ include = ["webui*", "core*", "adapters*"]
    │   配置 RotatingFileHandler + StreamHandler
    │   若配置文件不存在则使用硬编码默认值
    │
-3. 加载配置 (ConfigService)
+3. 初始化核心服务 (core.setup_core)
+   │   创建 ConfigService（使用 CLI 指定的 config_dir）
+   │   创建 ServiceRegistry、ProcessManager 等实例
+   │   ProcessManager 工作线程尚未启动
+   │
+4. 加载配置并初始化 ServiceRegistry
    │   config/ 目录不存在 → 创建并写入默认配置
    │   config/webui.yaml 不存在 → 创建默认值
-   │   config/services.yaml 不存在 → 创建含四个占位服务的默认值
+   │   config/services.yaml 不存在 → 创建空服务列表
    │   配置文件存在但 YAML 解析失败 → 打印错误并退出(exit 1)
    │   配置文件存在但校验失败 → 打印错误并退出(exit 1)
-   │
-4. 初始化 ServiceRegistry
-   │   从加载的 YAML 构建 ServiceRecord 字典
+   │   registry.load_from_config() 填充服务记录
    │
 5. 启动后台守护线程
-   │   HealthChecker.start()  → 每 10 秒探测 (daemon=True)
-   │   GpuMonitor.start()     → 每 5 秒采集指标 (daemon=True)
-   │   ProcessManager.watch() → 每 15 秒检查进程 (daemon=True)
+   │   core.process_manager.start()       → 启动工作线程（队列处理）
+   │   core.process_manager.start_watcher() → 每 15 秒检查进程
+   │   HealthChecker.start()              → 每 N 秒探测
+   │   GpuMonitor.start()                 → 每 N 秒采集指标
    │
 6. Auto-start 启用的服务
    │   对 ServiceRegistry 中 enabled=true 且 start.command 非空的服务:
-   │   ProcessManager.start(service_id)   → 异步启动
+   │   ProcessManager.start(service_id)   → 异步提交到工作队列
    │   HealthChecker 自动开始探测该服务
    │
 7. 构建并启动 WebUI

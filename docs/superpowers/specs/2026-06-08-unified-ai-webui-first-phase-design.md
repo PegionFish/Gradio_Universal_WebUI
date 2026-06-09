@@ -350,23 +350,29 @@ main.py 启动序列：
 2. 初始化日志系统
    │   根据 config/webui.yaml logging 配置，设置 RotatingFileHandler
    │
-3. 加载配置 (ConfigService)
-   │   ├── 若 config/webui.yaml 不存在 → 创建默认配置
-   │   ├── 若 config/services.yaml 不存在 → 创建含四个占位服务的默认配置
-   │   └── 校验失败 → 打印错误并退出
+3. 初始化核心服务 (core.setup_core)
+   │   ├── 创建 ConfigService 实例（使用 CLI 指定的 config_dir）
+   │   ├── 创建 ServiceRegistry、ProcessManager 等实例
+   │   ├── ProcessManager 工作线程尚未启动（延迟到步骤 5）
+   │   └── 各模块级变量（config、registry 等）完成赋值
    │
-4. 初始化 ServiceRegistry
-   │   从加载的 YAML 构建服务记录字典
+4. 加载配置并初始化 ServiceRegistry
+   │   通过 ConfigService 加载 YAML 文件:
+   │   ├── 若 config/webui.yaml 不存在 → 创建默认配置
+   │   ├── 若 config/services.yaml 不存在 → 创建空服务列表
+   │   ├── 校验失败 → 打印错误并退出
+   │   └── registry.load_from_config() 填充服务记录
    │
 5. 启动后台线程
-   │   ├── HealthChecker 线程 (daemon=True)
-   │   ├── GpuMonitor 线程 (daemon=True)
-   │   └── ProcessManager 监控线程 (daemon=True)
+   │   ├── ProcessManager.start()     → 启动工作线程（处理启动/停止请求队列）
+   │   ├── ProcessManager.start_watcher() → 每 15 秒检查进程存活
+   │   ├── HealthChecker.start()      → 每 N 秒探测健康状态
+   │   └── GpuMonitor.start()         → 每 N 秒采集 GPU 指标
    │
 6. Auto-start 启用的服务
    │   对 enabled=true 且 start.command 非空的服务:
-   │   ├── ProcessManager.start(service_id)
-   │   └── HealthChecker 开始探测
+   │   ├── ProcessManager.start(service_id)  → 异步提交到工作队列
+   │   └── HealthChecker 自动探测该服务
    │
 7. 构建并启动 WebUI
    │   ├── webui/app.py → create_app()
@@ -379,32 +385,60 @@ main.py 启动序列：
    │   └── 退出
 ```
 
+关键变更说明：
+- **步骤 3** 从"加载配置"变为"初始化核心服务"，此时仅创建实例，不加载数据
+- **步骤 4** 新增"加载配置并初始化 ServiceRegistry"，明确分离"创建实例"与"加载数据"
+- **步骤 5** 添加 `ProcessManager.start()`，显式启动工作线程（原来在 `__init__` 中自动启动）
+- **步骤 5** 添加 `ProcessManager.start_watcher()`，原为独立方法
+
 此启动序列确保在打开 WebUI 端口之前，所有核心服务和自动启用的模型服务已经就绪。后台线程均为 `daemon=True`，主进程退出时自动终止。
 
 #### 核心服务生命周期
 
-核心服务（ConfigService、ServiceRegistry、ProcessManager、HealthChecker、TaskScheduler、GpuMonitor、ResultManager）作为 Python 模块级单例存在，不通过依赖注入容器管理。各服务的引用方式为：
+核心服务（ConfigService、ServiceRegistry、ProcessManager、HealthChecker、TaskScheduler、GpuMonitor、ResultManager）通过 `core.setup_core()` 集中初始化，由 `main.py` 在启动序列早期调用。各服务的引用方式为模块级变量。
 
 ```python
 # core/__init__.py
 from core.config_service import ConfigService
 from core.service_registry import ServiceRegistry
+from core.event_bus import bus
 from core.process_manager import ProcessManager
 from core.health_checker import HealthChecker
 from core.task_scheduler import TaskScheduler
 from core.gpu_monitor import GpuMonitor
 from core.result_manager import ResultManager
 
-config = ConfigService()
-registry = ServiceRegistry()
-process_manager = ProcessManager()
-health_checker = HealthChecker()
-scheduler = TaskScheduler()
-gpu_monitor = GpuMonitor()
-result_mgr = ResultManager()
+# 模块级变量，在 main.py 的 setup_core() 中初始化
+config: ConfigService = None       # type: ignore[assignment]
+registry: ServiceRegistry = None   # type: ignore[assignment]
+process_manager: ProcessManager = None  # type: ignore[assignment]
+health_checker: HealthChecker = None    # type: ignore[assignment]
+scheduler: TaskScheduler = None         # type: ignore[assignment]
+gpu_monitor: GpuMonitor = None          # type: ignore[assignment]
+result_mgr: ResultManager = None        # type: ignore[assignment]
+
+
+def setup_core(config_dir: str = "config/") -> None:
+    """初始化所有核心服务。在 main.py 启动序列步骤 3 中调用。
+    
+    此时仅创建实例和数据结构，不启动后台线程（延迟到步骤 5）。
+    ProcessManager 的工作线程也在此后通过显式 start() 启动。
+    """
+    global config, registry, process_manager, health_checker
+    global scheduler, gpu_monitor, result_mgr
+
+    config = ConfigService(config_dir)
+    registry = ServiceRegistry()
+    process_manager = ProcessManager()
+    health_checker = HealthChecker()
+    scheduler = TaskScheduler()
+    gpu_monitor = GpuMonitor()
+    result_mgr = ResultManager()
 ```
 
-各页面通过 `from core import registry, scheduler` 等直接引用所需服务。这种模式参考了 sd-webui-aki 的 `modules/` 包结构，核心模块通过 `import` 链自动初始化，页面文件按需引用。
+各页面通过 `from core import registry, scheduler` 等直接引用模块级变量。这种模式要求所有对 core 的访问必须在 `setup_core()` 调用之后进行——由于 setup 在 main.py 启动序列步骤 3 执行，在 WebUI 启动之前，因此页面代码中引用 core 变量时总是已初始化状态。
+
+> **注意**：`ProcessManager.__init__()` 不再自动启动工作线程。工作线程的启动延迟到 `ProcessManager.start()` 显式调用，确保后台线程在配置和服务注册表就绪后才开始处理请求。
 
 #### 启动后刷新流程
 
@@ -661,6 +695,7 @@ bus.on("service_state_changed", _on_service_state_changed)
 | 线程 | 用途 | 守护线程 |
 |------|------|---------|
 | 主线程 | Gradio `launch()` 阻塞运行 | — |
+| ProcessManager worker | 从队列取出启动/停止/重启请求，依次执行 | 是 |
 | HealthChecker | 每 10 秒探测服务健康状态 | 是 |
 | GpuMonitor | 每 5 秒采集 GPU 指标 | 是 |
 | ProcessManager watcher | 每 15 秒检查进程存活 | 是 |
@@ -1353,7 +1388,6 @@ dependencies = [
     "pyyaml>=6.0",
     "nvidia-ml-py>=12.0",       # GPU 监控的 NVML 绑定
     "aiohttp>=3.9",              # 健康检查和任务提交的异步 HTTP 客户端
-    "aiosqlite>=0.20",           # 异步 SQLite 访问
 ]
 
 [project.optional-dependencies]

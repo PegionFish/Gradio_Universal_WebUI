@@ -30,6 +30,15 @@ class ProcessManager:
         self._log_files: dict[str, str] = {}
         self._shutdown = threading.Event()
         self._queue: queue.Queue = queue.Queue()
+        self._worker: threading.Thread | None = None
+    
+    def start(self):
+        """启动工作线程。由 main.py 在后台线程初始化阶段显式调用。
+        
+        不在 __init__ 中自动启动，以确保 ServiceRegistry 和配置已就绪。
+        """
+        if self._worker is not None:
+            return
         self._worker = threading.Thread(target=self._worker_loop, daemon=True, name="proc-mgr")
         self._worker.start()
     
@@ -174,6 +183,23 @@ def stop_all(self):
         self._do_stop(service_id)
 ```
 
+### tail_log() —— 查看服务日志尾部
+
+```python
+def tail_log(self, service_id: str, lines: int = 50) -> str:
+    """返回服务日志的最后 N 行。由 WebUI 服务管理页面调用。"""
+    import glob
+    log_dir = os.path.join("data/logs/services", service_id)
+    log_files = sorted(glob.glob(os.path.join(log_dir, "*.log")))
+    if not log_files:
+        return "(无日志)"
+    
+    latest = log_files[-1]
+    with open(latest, "r", encoding="utf-8") as f:
+        all_lines = f.readlines()
+    return "".join(all_lines[-lines:])
+```
+
 ### 停止前保护运行中任务
 
 在服务管理页面的停止按钮回调中实现（非 ProcessManager 职责）：
@@ -291,16 +317,17 @@ URL 为空的服务（`service_url == ""`）跳过探测，状态由 ProcessMana
 在 `main.py` 步骤 5-6 中：
 
 ```python
-from core.process_manager import ProcessManager
-from core.health_checker import HealthChecker
+# ProcessManager 和 registry 已在 core.setup_core() 中创建
+from core import process_manager, health_checker, registry, config
 
-process_manager = ProcessManager()
-process_manager.start_watcher()
+# 步骤 5: 启动后台线程
+process_manager.start()            # 启动工作线程（处理队列中的启动/停止请求）
+process_manager.start_watcher()    # 启动监控线程（每 15 秒检查进程存活）
+health_checker.start(
+    interval_seconds=config.get_refresh_setting("health_check_seconds", 10)
+)
 
-health_checker = HealthChecker()
-health_checker.start(interval_seconds=config.get_refresh_setting("health_check_seconds", 10))
-
-# 步骤 6: auto-start
+# 步骤 6: auto-start — 异步提交到 ProcessManager 工作队列
 for svc in registry.list_services():
     if svc.enabled and svc.start_command:
         process_manager.start(svc.id)

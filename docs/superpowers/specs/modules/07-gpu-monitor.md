@@ -172,7 +172,7 @@ class GpuMonitor:
             return GpuMetrics(
                 available=True,
                 snapshots=snapshots,
-                updated_at=datetime.datetime.utcnow().isoformat(),
+                updated_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
             )
         
         except Exception as e:
@@ -200,8 +200,6 @@ class GpuMonitor:
         if not metrics.available or not metrics.snapshots:
             return []
         
-        min_mem_bytes = min_memory_gb * 1024 * 1024 * 1024  # 转换为字节用于比较
-        # 但实际上 snapshot 存储的是 MiB，所以:
         min_mib = min_memory_gb * 1024
         
         eligible = [s for s in metrics.snapshots if s.memory_free_mb >= min_mib]

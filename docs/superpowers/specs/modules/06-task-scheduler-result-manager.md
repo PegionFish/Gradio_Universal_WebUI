@@ -8,7 +8,6 @@
 
 - **模块 1**：项目骨架（`data/tasks.sqlite3`、`data/jobs/` 目录）
 - **模块 3**：EventBus（任务事件通知）
-- Python 包：`aiosqlite>=0.20`
 
 ## TaskScheduler
 
@@ -105,7 +104,7 @@ class TaskScheduler:
                     target_gpu: list[int] | None = None) -> str:
         """创建新任务并写入 SQLite。返回任务 ID。"""
         task_id = str(uuid.uuid4())
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         
         with self._lock:
             with self._get_conn() as conn:
@@ -136,7 +135,7 @@ class TaskScheduler:
         if status not in VALID_STATUSES:
             raise ValueError(f"无效状态: {status}")
         
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         
         with self._lock:
             with self._get_conn() as conn:

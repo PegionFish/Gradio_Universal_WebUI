@@ -1,0 +1,30 @@
+<h2>统一 AI 前端套件：先确定顶层架构</h2>
+<p class="subtitle">你的需求是：一个端口访问多个 AI 应用；模块化启用不同组件；统一控制面板做模型选择、技术栈配置、硬件监控；模型功能仍在各自模型页面选择；首批兼容 Stable Diffusion、Qwen3ASR、WhisperX、FastWhisper，并支持 NVIDIA GPU 定向调度。</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>单 Gradio 应用 + 模块路由</h3>
+      <p>一个主进程启动所有 UI 与后端适配器，模块作为 Python 包动态启用。实现简单，适合早期快速验证，但多个重型模型共享同一进程，隔离和故障恢复较弱。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Gradio 控制层 + 独立模型服务</h3>
+      <p>一个统一 Web 入口负责导航、控制面板、任务队列和 GPU 监控；每个模型/技术栈作为独立后端服务或工作进程运行。隔离最好，适合多 GPU、多模型并发，但工程复杂度最高。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合模式：主 Gradio + 轻量 Worker 池</h3>
+      <p>Gradio 主应用统一入口；每个模型组件在 Worker 池中按需加载，GPU 分配由调度器管理。复杂度介于 A/B 之间，适合先落地再扩展为独立服务。</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">请在浏览器里点击一个选项，或在终端补充你的偏好。接下来我会基于这个选择继续细化模块边界与首批实现范围。</p>

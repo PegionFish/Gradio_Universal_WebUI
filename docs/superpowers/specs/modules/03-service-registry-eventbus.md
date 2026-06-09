@@ -178,13 +178,21 @@ bus = EventBus()
 from core.config_service import ConfigService
 from core.service_registry import ServiceRegistry
 from core.event_bus import bus
-# 仅用于类型引用，不在此处 init
 
-config = ConfigService()
-registry = ServiceRegistry()
+# 模块级变量，在 main.py 的 setup_core() 中初始化
+config: ConfigService = None       # type: ignore[assignment]
+registry: ServiceRegistry = None   # type: ignore[assignment]
+# ... 其他核心服务类似
+
+
+def setup_core(config_dir: str = "config/") -> None:
+    """初始化所有核心服务。由 main.py 在启动序列步骤 3 中调用。"""
+    global config, registry
+    config = ConfigService(config_dir)
+    registry = ServiceRegistry()
 ```
 
-> 注意：`ConfigService` 和 `ServiceRegistry` 在 `core/__init__.py` 中实例化为模块级单例。后台线程（HealthChecker、GpuMonitor）和 WebUI 页面通过 `from core import registry, config` 引用。**不要在多个位置重复实例化**。
+> 注意：核心服务不在模块导入时自动实例化，而是通过 `core.setup_core()` 在 `main.py` 的控制下统一初始化。后台线程和 WebUI 页面通过 `from core import registry, config` 引用这些模块级变量。`setup_core()` 在 WebUI 启动前完成，因此页面代码访问 core 变量时总是已初始化状态。
 
 ## 验收标准
 

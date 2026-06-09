@@ -249,7 +249,7 @@ def _on_select_service(service_id: str):
     return log
 ```
 
-> **注意**：`process_manager.tail_log()` 需要在 ProcessManager 中补充实现，读取 `data/logs/services/<id>/<timestamp>.log` 最后 50 行。
+> **注意**：`process_manager.tail_log()` 在模块 5 的 ProcessManager 中实现，读取 `data/logs/services/<id>/<timestamp>.log` 最后 50 行。
 
 ---
 
