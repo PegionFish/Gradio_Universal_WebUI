@@ -77,15 +77,28 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("配置加载失败: %s", e)
         return 1
 
+    # 4b. 导入适配器模块以触发自动注册
+    import adapters.stable_diffusion  # noqa: F401
+    import adapters.qwen3_asr        # noqa: F401
+    import adapters.whisperx         # noqa: F401
+    import adapters.fastwhisper      # noqa: F401
+    logger.info("适配器已注册")
+
     # 5. 启动后台线程
     from core import process_manager, health_checker, registry, config
+    from core.gpu_monitor import GpuMonitor
+
     process_manager.start_worker()
     process_manager.start_watcher()
     health_checker.start(
         interval_seconds=config.get_refresh_setting("health_check_seconds", 10)
     )
-    # gpu_monitor.start()  (Module 7: GPU Monitor)
-    logger.info("后台线程已启动 (ProcessManager, HealthChecker)")
+
+    gpu_monitor = GpuMonitor()
+    gpu_monitor.start(
+        interval_seconds=config.get_refresh_setting("gpu_metrics_seconds", 5)
+    )
+    logger.info("后台线程已启动 (ProcessManager, HealthChecker, GpuMonitor)")
 
     # 6. 自动启动 enabled 服务
     for svc in registry.list_services():
