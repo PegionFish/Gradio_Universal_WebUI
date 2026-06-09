@@ -1,194 +1,440 @@
 ---
 name: unified-ai-webui-first-phase-design
-description: First-phase design for a Gradio-based unified AI frontend suite managing local AI workloads.
+description: 基于 Gradio 的统一 AI 前端套件第一阶段设计，管理本地 AI 负载
 metadata:
   type: project
 ---
 
-# Unified AI WebUI First-Phase Design
+# 统一 AI WebUI 第一阶段设计
 
-Date: 2026-06-08
+日期: 2026-06-08
 
-## 1. Goal
+## 1. 目标
 
-Build the first phase of a Gradio-based unified AI frontend suite for a Linux local server serving LAN users. The suite provides one public WebUI port for navigation, control, configuration, task management, service management, and GPU monitoring, while each AI model service remains an independent HTTP service with its own port.
+构建基于 Gradio 的统一 AI 前端套件第一阶段，面向 Linux 本地服务器上为局域网用户提供服务。该套件提供一个对外 WebUI 端口，集中管理导航、控制、配置、任务调度、服务管理和 GPU 监控，同时每个 AI 模型服务作为独立 HTTP 服务保留自己的端口。
 
-The first phase implements the framework and management layer. Model-specific inference for Qwen3ASR, WhisperX, and FastWhisper is intentionally deferred to later sessions. Stable Diffusion, Qwen3ASR, WhisperX, and FastWhisper are represented as pluggable model entries and adapter placeholders in phase one.
+第一阶段实现框架和管理层。Qwen3ASR、WhisperX 和 FastWhisper 的模型推理功能推迟到后续阶段实现。Stable Diffusion、Qwen3ASR、WhisperX 和 FastWhisper 在第一阶段以可插拔的模型入口和适配器占位形式存在。
 
-## 2. User Requirements Confirmed
+Brainstorm 阶段收集的参考材料:
+- Qwen3ASR: 开发机上的 `E:\Qwen3ASR\qwen-asr-1.7B\app.py` —— 一个独立的 Gradio demo，使用 Transformers/vLLM 后端，支持音频上传、时间戳强制对齐器和 SRT 字幕输出。第一阶段不集成此项目，但作为后续适配器实现的主要参考。
 
-- One Gradio WebUI exposes all management features through a single external port.
-- Each model service keeps its own HTTP port for direct use by other applications or workflow automation.
-- LAN users can access the full feature set without authentication in phase one.
-- NVIDIA GPU acceleration is required.
-- Users can select target GPU with high granularity.
-- The system shows GPU memory, utilization, temperature, and workload status.
-- The system recommends suitable GPUs based on current load, but the user keeps final control.
-- Model services can run on different GPUs, or different models can share one GPU depending on configuration and workload.
-- Configuration is managed through the WebUI and saved to local YAML.
-- Task queue and task history are persisted with SQLite.
-- Task result files are stored under a fixed project directory, `data/jobs/`.
-- The WebUI can start, stop, restart, and monitor model services.
-- Phase-one target deployment is a Linux local server for LAN users.
-- Python environment management is not locked in phase one; the design keeps an extension point for venv, conda, or containerized services.
+## 2. 已确认需求
 
-## 3. Scope
+- 单个 Gradio WebUI 通过一个对外端口暴露所有管理功能
+- 每个模型服务保留自己的 HTTP 端口，供其他应用直接调用或搭建自动化工作流
+- 第一阶段局域网用户无需认证即可访问全部功能
+- 必须支持 NVIDIA GPU 加速
+- 用户能以最高粒度选择目标 GPU
+- 系统展示 GPU 显存、利用率、温度和工作负载状态
+- 系统根据当前负载推荐合适的 GPU，但用户保留最终决定权
+- 模型服务可部署在不同 GPU 上，或多个模型共享同一 GPU，取决于配置和工作负载
+- 通过 WebUI 管理配置，实时保存到本地 YAML 文档
+- 任务队列和任务历史通过 SQLite 持久化
+- 任务结果文件存储在项目固定目录 `data/jobs/`
+- WebUI 能启动、停止、重启和监控模型服务
+- 第一阶段目标部署环境为 Linux 本地服务器，面向局域网用户
+- Python 环境管理在第一阶段不做锁定，设计保留 venv、conda、容器化等扩展点
 
-### In Scope for Phase One
+## 3. 范围
 
-- Gradio unified WebUI with a single public port.
-- Navigation and model entry pages for:
+### 第一阶段纳入范围
+
+- 单个公共端口的 Gradio 统一 WebUI
+- 以下模型的导航和入口页面:
   - Stable Diffusion
   - Qwen3ASR
   - WhisperX
   - FastWhisper
-- Service registry and service configuration stored in YAML.
-- WebUI configuration editor with YAML persistence.
-- Service manager for start, stop, restart, and status display.
-- Health checking for HTTP model services.
-- SQLite-backed task queue and task history.
-- Result file management under `data/jobs/`.
-- NVIDIA GPU monitoring and recommendation logic.
-- Adapter interface definitions for model services.
-- Placeholder adapters for first-batch model entries.
-- Basic error handling, logs, and user-facing status messages.
-- Tests for core framework behavior where model inference is not required.
+- 服务注册表和服务配置，存储在 YAML 中
+- WebUI 配置编辑器，持久化到 YAML
+- 服务管理器：启动、停止、重启和状态显示
+- HTTP 模型服务的健康检查
+- SQLite 支撑的任务队列和任务历史
+- `data/jobs/` 下的结果文件管理
+- NVIDIA GPU 监控和建议逻辑
+- 模型服务的适配器接口定义
+- 首批模型条目的占位适配器
+- 基础错误处理、日志和面向用户的状态消息
+- 不涉及模型推理的核心框架测试
 
-### Out of Scope for Phase One
+### 第一阶段不纳入范围
 
-- Authentication, authorization, and multi-user permissions.
-- Full Qwen3ASR inference integration.
-- Full WhisperX inference integration.
-- Full FastWhisper inference integration.
-- Binding Stable Diffusion to a specific backend such as A1111, ComfyUI, or Diffusers.
-- Automatic GPU protection that blocks user-submitted jobs.
-- Docker Compose-first deployment.
-- Multi-user role separation.
-- Long-running workflow orchestration across multiple model services.
-- Production-grade remote deployment hardening.
+- 认证、授权和多用户权限管理
+- Qwen3ASR 完整推理集成
+- WhisperX 完整推理集成
+- FastWhisper 完整推理集成
+- 将 Stable Diffusion 绑定到特定后端（如 A1111、ComfyUI 或 Diffusers）
+- 自动 GPU 保护（阻止用户提交作业）
+- 以 Docker Compose 为主要部署方式
+- 多用户角色分离
+- 跨多模型服务的长时间工作流编排
+- 生产级远程部署加固
 
-## 4. Architecture
+## 4. 系统架构
 
 ```text
-LAN Browser
+局域网浏览器
    |
    v
-[ Unified Gradio WebUI : one public port ]
+[ 统一 Gradio WebUI : 一个对外端口 ]
    |
-   |-- Navigation and model pages
-   |-- Control Panel
-   |-- Configuration Editor
-   |-- Task Queue UI
-   |-- GPU Monitor
-   |-- Service Manager
-   |
-   v
-[ Core Services inside WebUI process ]
-   |-- ConfigService
-   |-- ServiceRegistry
-   |-- ProcessManager
-   |-- HealthChecker
-   |-- TaskScheduler
-   |-- GpuMonitor
-   |-- ResultManager
+   |-- 导航与模型页面
+   |-- 控制面板
+   |-- 配置编辑器
+   |-- 任务队列界面
+   |-- GPU 监控
+   |-- 服务管理器
    |
    v
-[ Adapter Layer ]
+[ WebUI 进程内部的核心服务 ]
+   |-- ConfigService       配置服务
+   |-- ServiceRegistry     服务注册中心
+   |-- ProcessManager      进程管理器
+   |-- HealthChecker       健康检查器
+   |-- TaskScheduler       任务调度器
+   |-- GpuMonitor          GPU 监控器
+   |-- ResultManager       结果管理器
+   |
+   v
+[ 适配器层 ]
    |-- BaseModelAdapter
-   |-- StableDiffusionAdapter placeholder
-   |-- Qwen3ASRAdapter placeholder
-   |-- WhisperXAdapter placeholder
-   |-- FastWhisperAdapter placeholder
+   |-- StableDiffusionAdapter 占位
+   |-- Qwen3ASRAdapter        占位
+   |-- WhisperXAdapter        占位
+   |-- FastWhisperAdapter     占位
    |
    v
-[ Independent Model HTTP Services ]
-   |-- stable-diffusion-service : own HTTP port
-   |-- qwen3-asr-service : future
-   |-- whisperx-service : future
-   |-- fastwhisper-service : future
+[ 独立模型 HTTP 服务 ]
+   |-- stable-diffusion-service : 自有 HTTP 端口
+   |-- qwen3-asr-service : 后续
+   |-- whisperx-service : 后续
+   |-- fastwhisper-service : 后续
 ```
 
-## 5. Component Design
-
-### 5.1 Gradio WebUI
-
-The WebUI is the only externally exposed user interface. It provides:
-
-- Model navigation.
-- Control panel.
-- Configuration editor.
-- Service status table.
-- Service start/stop/restart controls.
-- Task submission and task history views.
-- GPU monitoring dashboard.
-- Result file links.
-
-The WebUI does not directly implement model inference. It delegates model work to adapters and HTTP model services.
-
-### 5.2 ConfigService
-
-`ConfigService` reads and writes YAML configuration. The WebUI edits configuration through forms and tables, then persists changes to disk.
-
-Recommended initial file:
+## 5. 项目目录结构
 
 ```text
-config/services.yaml
+Gradio_Universal_WebUI/
+├── main.py                        # CLI 入口
+├── pyproject.toml                 # 项目元数据和依赖
+├── config/
+│   ├── services.yaml              # 模型服务定义
+│   └── webui.yaml                 # WebUI 服务器设置（端口、主机、刷新间隔）
+├── data/
+│   ├── tasks.sqlite3              # SQLite 任务队列和历史
+│   └── jobs/                      # 任务结果文件
+│       └── <task_id>/
+│           ├── request.json
+│           ├── response.json
+│           ├── logs/
+│           └── outputs/
+├── webui/
+│   ├── __init__.py
+│   ├── app.py                     # Gradio Blocks 应用组装
+│   ├── pages/                     # 每个 Gradio 标签页一个文件
+│   │   ├── __init__.py
+│   │   ├── dashboard.py           # 概览/首页
+│   │   ├── services.py            # 服务管理页面
+│   │   ├── tasks.py               # 任务队列和历史页面
+│   │   ├── gpu.py                 # GPU 监控页面
+│   │   ├── config.py              # 配置编辑器页面
+│   │   ├── stable_diffusion.py    # 模型入口页面（占位）
+│   │   ├── qwen3_asr.py           # 模型入口页面（占位）
+│   │   ├── whisperx.py            # 模型入口页面（占位）
+│   │   └── fastwhisper.py         # 模型入口页面（占位）
+│   ├── components/                # 可复用 Gradio 组件
+│   │   ├── __init__.py
+│   │   ├── service_table.py
+│   │   ├── task_list.py
+│   │   ├── gpu_dashboard.py
+│   │   ├── config_editor.py
+│   │   └── error_display.py
+│   └── state.py                   # 共享响应式状态 (gr.State)
+├── core/
+│   ├── __init__.py
+│   ├── config_service.py          # YAML 读写/校验
+│   ├── service_registry.py        # 服务元数据存储
+│   ├── process_manager.py         # 启动/停止/重启服务
+│   ├── health_checker.py          # 定时 HTTP 健康探测
+│   ├── task_scheduler.py          # SQLite 支撑的任务队列
+│   ├── gpu_monitor.py             # 基于 NVML 的 GPU 指标
+│   └── result_manager.py          # data/jobs/ 文件管理
+├── adapters/
+│   ├── __init__.py
+│   ├── base.py                    # 抽象基类适配器
+│   ├── stable_diffusion.py        # 占位适配器
+│   ├── qwen3_asr.py               # 占位适配器
+│   ├── whisperx.py                # 占位适配器
+│   └── fastwhisper.py             # 占位适配器
+├── tests/
+│   ├── __init__.py
+│   ├── test_config_service.py
+│   ├── test_service_registry.py
+│   ├── test_process_manager.py
+│   ├── test_health_checker.py
+│   ├── test_task_scheduler.py
+│   ├── test_gpu_monitor.py
+│   ├── test_result_manager.py
+│   └── test_adapters.py
+└── docs/
+    └── superpowers/
+        └── specs/
+            └── 2026-06-08-unified-ai-webui-first-phase-design.md
 ```
 
-Configuration includes:
+## 6. 组件设计
 
-- Service name.
-- Display name.
-- Model type.
-- Enabled flag.
-- HTTP URL or host/port.
-- Local working directory.
-- Command to start the service.
-- GPU assignment or allowed GPU list.
-- Environment variables.
-- Health check path.
-- Result directory override, if needed.
+### 6.1 Gradio WebUI
 
-The WebUI must validate configuration before saving. Invalid configuration should be rejected with a clear message and must not overwrite a previously valid file.
+WebUI 是唯一对外暴露的用户界面。
 
-### 5.3 ServiceRegistry
+#### 页面结构
 
-`ServiceRegistry` stores the known set of model services. It is populated from YAML and exposes service metadata to the WebUI, scheduler, health checker, and adapters.
+WebUI 使用 Gradio `gr.Blocks` 配合 `gr.Tabs` 实现顶层导航：
 
-Each service record contains:
+| 标签页 | 页面文件 | 用途 |
+|--------|---------|------|
+| 仪表盘 | `dashboard.py` | 首页：服务摘要、最近任务、GPU 概览 |
+| 服务管理 | `services.py` | 服务状态表、启动/停止/重启控制、日志查看 |
+| 任务管理 | `tasks.py` | 任务提交、队列状态、任务历史、结果链接 |
+| GPU 监控 | `gpu.py` | 每个 GPU 的指标仪表盘和推荐面板 |
+| 配置 | `config.py` | YAML 编辑器、服务定义增删改、校验反馈 |
+| Stable Diffusion | `stable_diffusion.py` | 模型入口页面（占位） |
+| Qwen3 ASR | `qwen3_asr.py` | 模型入口页面（占位） |
+| WhisperX | `whisperx.py` | 模型入口页面（占位） |
+| FastWhisper | `fastwhisper.py` | 模型入口页面（占位） |
 
-- Stable service ID.
-- Human-readable name.
-- Model family.
-- Service URL.
-- Start command.
-- Working directory.
-- GPU policy.
-- Health endpoint.
-- Enabled state.
-- Current runtime state.
+每个模型入口页面提供：
+- 服务选择下拉框（若同类型有多个服务）
+- 目标 GPU 选择器，附推荐指标
+- 模型专属参数占位区域（标注"预留供后续实现"）
+- 提交按钮，通过适配器层路由并展示任务结果
+- 跳转到任务管理标签页查看完整历史
 
-### 5.4 ProcessManager
+占位页面显示清晰提示：
+> "此模型适配器已为未来阶段预留。请在服务管理标签页中配置服务，等适配器实现后再来使用。"
 
-`ProcessManager` starts, stops, and restarts model service processes.
+#### 共享状态
 
-Phase-one requirements:
+WebUI 通过 `gr.State` 维护共享响应式状态：
+- `enabled_services` —— 已配置的服务列表
+- `service_statuses` —— 每个服务的运行/停止/不健康状态
+- `gpu_metrics` —— 最新 GPU 快照
+- `refresh_counter` —— 驱动周期性界面更新
 
-- Start a configured service command.
-- Stop a running service gracefully.
-- Force stop if graceful shutdown times out.
-- Restart by stop then start.
-- Capture stdout/stderr logs.
-- Store process PID and start time.
-- Mark process as exited if it terminates unexpectedly.
+#### 刷新策略
 
-Phase-one implementation should target Linux process management. Windows support can be added later through an abstraction layer.
+Gradio `gr.Blocks` 不自带自动刷新功能，采用以下方案保持界面更新：
 
-### 5.5 HealthChecker
+- **仪表盘和服务管理标签页**：使用 `gr.HTML` 配合 `<meta http-equiv="refresh">`，或通过隐藏周期性回调更新 `gr.Number` 触发 `.change()` 事件。
+- **GPU 监控**：每 5 秒通过定时回调刷新。
+- **健康状态**：HealthChecker 在后台线程每 10 秒运行一次；UI 在用户交互或切换标签页时读取共享状态。
+- **任务状态**：任务管理标签页激活时轮询（手动刷新按钮 + 存在运行中任务时自动每 15 秒轮询）。
 
-`HealthChecker` periodically probes each enabled service HTTP endpoint.
+WebUI 不直接实现模型推理，将所有模型工作委托给适配器和 HTTP 模型服务。
 
-Minimum health response contract:
+### 6.2 ConfigService（配置服务）
+
+`ConfigService` 负责 YAML 配置的读写。WebUI 通过表单和表格编辑配置，实时持久化到磁盘。
+
+#### 配置文件
+
+| 文件 | 用途 |
+|------|------|
+| `config/webui.yaml` | WebUI 服务器设置（端口、主机、刷新间隔） |
+| `config/services.yaml` | 模型服务定义 |
+
+#### `config/webui.yaml` 结构
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 7860
+  public_url: ""              # 可选的公网/外部 URL 覆盖
+
+refresh:
+  health_check_seconds: 10
+  gpu_metrics_seconds: 5
+  task_status_seconds: 15
+
+logging:
+  level: "INFO"               # DEBUG, INFO, WARNING, ERROR
+  max_mb_per_file: 10
+  backup_count: 5
+  directory: "data/logs/"
+```
+
+#### `config/services.yaml` 结构
+
+```yaml
+services:
+  - id: "sd-webui"                  # 稳定服务 ID
+    display_name: "Stable Diffusion"
+    model_type: "stable-diffusion"  # 映射到适配器
+    enabled: true                    # WebUI 启动时自动启动
+    service_url: "http://127.0.0.1:17860"   # 若已在外部运行
+    health_endpoint: "/health"
+    start:
+      command: "python serve.py"    # 相对于 working_dir，或使用绝对路径
+      working_dir: "/opt/stable-diffusion"
+      env:
+        CUDA_VISIBLE_DEVICES: "0"
+        HF_HOME: "/data/huggingface"
+      stop_timeout_seconds: 30      # 优雅关闭等待时间，超时后 SIGKILL
+    gpu:
+      assignment: [0]               # 允许的 GPU 索引；空数组表示不限制
+      min_memory_gb: 8              # 该服务所需的最小 VRAM
+
+  - id: "qwen3-asr"
+    display_name: "Qwen3 ASR"
+    model_type: "qwen3-asr"
+    enabled: false
+    service_url: ""
+    health_endpoint: "/health"
+    start:
+      command: ""
+      working_dir: ""
+      env: {}
+      stop_timeout_seconds: 30
+    gpu:
+      assignment: []
+      min_memory_gb: 0
+
+  # WhisperX 和 FastWhisper 使用相同结构
+```
+
+如果 `start.command` 为空但 `service_url` 已设置，WebUI 将该服务视为外部托管（不提供启动/停止控制，仅进行健康检查）。
+
+#### 校验规则
+
+- `id`: 小写字母数字加连字符，在所有服务中唯一
+- `display_name`: 非空
+- `model_type`: 必须为 `stable-diffusion`、`qwen3-asr`、`whisperx`、`fastwhisper` 之一（后续阶段可扩展）
+- `service_url`: 合法的 HTTP/HTTPS URL
+- `start.command`: 若非空，则 `working_dir` 也必须非空
+- `gpu.assignment`: 每个索引必须为非负整数
+- `gpu.min_memory_gb`: 非负整数
+- `stop_timeout_seconds`: 介于 5 到 120 之间
+
+WebUI 在保存前必须校验配置。校验失败必须以字段级错误信息拒绝保存，不得覆盖先前有效的文件。保存操作采用"先写临时文件再重命名"的模式，防止写入不完整。
+
+### 6.3 ServiceRegistry（服务注册中心）
+
+`ServiceRegistry` 以线程安全的内存字典存储所有已知模型服务。启动时从 YAML 加载，可以在不重启 WebUI 的情况下重新加载。
+
+每个服务记录包含：
+
+- `id`: 稳定服务 ID
+- `display_name`: 人类可读的服务名
+- `model_type`: 映射到适配器类
+- `enabled`: 是否在 WebUI 启动时自动启动
+- `service_url`: API 调用的 HTTP URL
+- `service_url_internal`: 预留用于 Docker 桥接网络场景
+- `health_endpoint`: 健康探测路径
+- `start_command`、`working_dir`: 进程启动参数
+- `env`: 环境变量覆盖
+- `stop_timeout_seconds`: 优雅关闭超时
+- `gpu_assignment`: 允许的 GPU 索引
+- `gpu_min_memory_gb`: 最小 VRAM 需求
+- `runtime_state`: 取值为 `stopped`、`starting`、`running`、`unhealthy`、`stopping`、`exited`
+- `pid`: 进程 ID，非托管则为 None
+
+`ServiceRegistry` 在状态变化时发出事件，供 `HealthChecker`、`GpuMonitor` 和 WebUI 响应：
+
+- `service_added`（服务已添加）
+- `service_removed`（服务已移除）
+- `service_state_changed`（服务状态已变更）
+- `service_reloaded`（服务配置已重新加载）
+
+### 6.4 ProcessManager（进程管理器）
+
+`ProcessManager` 是模型服务进程的生命周期控制器。
+
+#### 启动行为
+
+WebUI 启动时：
+1. `ServiceRegistry` 从 YAML 加载服务定义。
+2. 对于每个 `enabled: true` 且 `start.command` 非空的服务：
+   - `ProcessManager` 启动该服务。
+   - `HealthChecker` 开始探测。
+   - 服务状态更新为 `starting`，随后变为 `running` 或 `unhealthy`。
+
+#### 启动流程
+
+```python
+def start(service_id: str) -> None:
+    service = registry.get(service_id)
+    env = os.environ.copy()
+    env.update(service.env)
+    
+    # 通过 CUDA_VISIBLE_DEVICES 分配 GPU
+    if service.gpu_assignment:
+        env["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, service.gpu_assignment))
+    
+    process = subprocess.Popen(
+        service.start_command,
+        cwd=service.working_dir,
+        env=env,
+        stdout=PIPE,
+        stderr=PIPE,
+        preexec_fn=os.setsid,       # 创建进程组以便干净终止
+        start_new_session=True,
+    )
+    store_pid(service_id, process.pid)
+    registry.set_runtime_state(service_id, "starting")
+```
+
+#### 停止流程
+
+```python
+def stop(service_id: str) -> None:
+    pid = get_pid(service_id)
+    timeout = registry.get(service_id).stop_timeout_seconds
+    
+    registry.set_runtime_state(service_id, "stopping")
+    
+    # 优雅关闭：向进程组发送 SIGTERM
+    os.killpg(os.getpgid(pid), signal.SIGTERM)
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # 强制终止：向进程组发送 SIGKILL
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        process.wait()
+    
+    registry.set_runtime_state(service_id, "stopped")
+```
+
+#### 重启
+
+依次执行停止再启动。如果服务处于不健康状态，重启尝试恢复。
+
+#### 停止前保护运行中任务
+
+如果某服务有运行中的任务（SQLite 中状态为 `running`），WebUI 显示确认对话框：
+> "服务 [名称] 有 [N] 个正在运行的任务。停止将中断这些任务。是否继续？"
+
+若用户确认，运行中任务标记为 `failed`，原因记录为 `service stopped`（服务已停止）。
+
+#### 日志采集
+
+`ProcessManager` 捕获 stdout/stderr 并写入 `data/logs/services/<service_id>/<timestamp>.log`。WebUI 在服务详情中显示日志尾部（最近 50 行）。
+
+#### 服务意外退出
+
+`ProcessManager` 通过监控线程定期检查 `process.poll()` 来检测意外退出。发生意外退出时，服务标记为 `exited`，并保留退出码和最近的日志行。
+
+### 6.5 HealthChecker（健康检查器）
+
+`HealthChecker` 在后台线程中运行，定时探测每个启用的服务。
+
+#### 检查间隔
+
+健康检查间隔通过 `config/webui.yaml` 的 `refresh.health_check_seconds` 配置（默认 10 秒）。间隔按服务独立计算，某个服务响应慢不会影响其他服务的检查。
+
+#### 最低健康响应约定
+
+实现健康端点的服务应返回 JSON：
 
 ```json
 {
@@ -200,302 +446,501 @@ Minimum health response contract:
 }
 ```
 
-If a service does not implement this contract yet, the service can expose a minimal phase-one health endpoint that returns service identity and readiness.
+对于第一阶段占位服务或没有真实 HTTP 后端的服务，`HealthChecker` 在 5 秒内收到任何 2xx HTTP 状态码即认为服务 `running`。
 
-### 5.6 TaskScheduler
+#### 健康状态
 
-`TaskScheduler` persists task state and queue metadata in SQLite.
+- `running`: 端点返回 2xx
+- `unhealthy`: 端点返回非 2xx、超时或连接被拒绝
+- `unknown`: 端点 URL 为空（已配置但无 URL 的外部托管服务）
 
-Recommended database file:
+服务从 `running` 变为 `unhealthy` 时，WebUI 显示警告并保留日志。
+
+#### 服务状态映射
+
+| 运行时状态 | 健康检查结果 | WebUI 显示 |
+|-----------|-------------|-----------|
+| `stopped` | 不探测 | 已停止 |
+| `starting` | 尚未探测 | 启动中... |
+| `running` | 2xx | 运行中 |
+| `running` | 非 2xx / 超时 | 不健康 |
+| `stopping` | 不探测 | 停止中... |
+| `exited` | 不探测 | 已退出（码 N） |
+
+### 6.6 TaskScheduler（任务调度器）
+
+`TaskScheduler` 在 SQLite 中持久化任务状态和队列元数据。
+
+#### 数据库文件
 
 ```text
 data/tasks.sqlite3
 ```
 
-Task states:
+#### SQLite 表结构
 
-- `queued`
-- `running`
-- `completed`
-- `failed`
-- `cancelled`
+```sql
+CREATE TABLE IF NOT EXISTS tasks (
+    id              TEXT PRIMARY KEY,           -- UUID v4
+    service_id      TEXT NOT NULL,              -- 引用 services.id
+    model_type      TEXT NOT NULL,              -- 如 "stable-diffusion"
+    adapter_name    TEXT NOT NULL,              -- 如 "StableDiffusionAdapter"
+    request_payload TEXT NOT NULL,              -- JSON 字符串
+    target_gpu      TEXT,                       -- JSON 数组或 null，如 "[0]"
+    status          TEXT NOT NULL DEFAULT 'queued',
+                                                -- queued | running | completed | failed | cancelled
+    created_at      TEXT NOT NULL,              -- ISO 8601
+    started_at      TEXT,                       -- ISO 8601
+    finished_at     TEXT,                       -- ISO 8601
+    result_paths    TEXT,                       -- JSON 文件路径数组或 null
+    error_summary   TEXT,                       -- 简短描述或 null
+    error_detail    TEXT                        -- 完整错误文本或 null
+);
 
-Task records include:
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_tasks_service_id ON tasks(service_id);
+CREATE INDEX idx_tasks_created_at ON tasks(created_at);
+```
 
-- Task ID.
-- Service ID.
-- Model type.
-- Adapter name.
-- Request payload.
-- Target GPU.
-- Status.
-- Created time.
-- Started time.
-- Finished time.
-- Result file paths.
-- Error summary.
-- Log reference.
+#### 任务状态机
 
-The scheduler should be able to enqueue tasks even when a target service is offline, but the WebUI should warn the user before submitting to an offline service.
+```
+queued ──> running ──> completed
+                │
+                ├──> failed
+                │
+                └──> cancelled（可从除 completed 外的任何状态进入）
+```
 
-### 5.7 GpuMonitor
+#### 并发
 
-`GpuMonitor` collects NVIDIA GPU metrics and provides recommendations.
+第一阶段不限制每个服务的并发任务数。如果服务收到多个请求，由其自身处理队列行为。TaskScheduler 记录所有提交及其结果，但不实现速率限制或每个服务的并发槽。
 
-Minimum metrics:
+#### 离线服务处理
 
-- GPU index.
-- GPU name.
-- Memory total.
-- Memory used.
-- Memory free.
-- Utilization percentage.
-- Temperature.
-- Running CUDA processes, where available.
+向状态为 `stopped` 或 `exited` 的服务提交任务时：
+- WebUI 警告："服务 [名称] 未在运行。提交到离线服务的任务将保持排队状态，直到服务启动。"
+- 任务保存为 `queued` 状态。
+- 服务变为 `running` 时，排队任务不会自动提交（这是第二阶段的工作）。
+- 用户可以手动取消排队中的任务。
 
-Recommendation logic should rank GPUs by available memory first, then utilization, then temperature. The recommendation is advisory only. The user can manually override the recommended GPU.
+### 6.7 GpuMonitor（GPU 监控器）
 
-The system must not automatically block jobs in phase one.
+`GpuMonitor` 通过 NVML（`nvidia-ml-py` 库）采集 NVIDIA GPU 指标。相比解析 `nvidia-smi` 子进程输出，NVML 在长时间运行的进程中开销更低、数据更结构化。
 
-### 5.8 ResultManager
+#### 采集指标
 
-`ResultManager` writes and tracks outputs under:
+| 指标 | 来源 | 单位 |
+|------|------|------|
+| GPU 索引 | `nvmlDeviceGetIndex` | 整数 |
+| GPU 名称 | `nvmlDeviceGetName` | 字符串 |
+| 总显存 | `nvmlDeviceGetMemoryInfo.total` | MiB |
+| 已用显存 | `nvmlDeviceGetMemoryInfo.used` | MiB |
+| 空闲显存 | `nvmlDeviceGetMemoryInfo.free` | MiB |
+| GPU 利用率 | `nvmlDeviceGetUtilizationRates.gpu` | 百分比 |
+| 显存利用率 | `nvmlDeviceGetUtilizationRates.memory` | 百分比 |
+| 温度 | `nvmlDeviceGetTemperature(GPU)` | 摄氏度 |
+| 功耗 | `nvmlDeviceGetPowerUsage` | 毫瓦 |
+| 运行中进程 | `nvmlDeviceGetComputeRunningProcesses` | (pid, 已用显存) 列表 |
+
+#### 刷新
+
+指标每 `config/webui.yaml` 的 `refresh.gpu_metrics_seconds`（默认 5 秒）在后台线程中刷新一次。最新快照保存在线程安全的 `GpuSnapshot` 数据类中，供 WebUI 读取。
+
+#### 推荐引擎
+
+基于最新快照计算推荐。排序规则：
+
+1. 过滤可用显存满足需求（>= `service.gpu_min_memory_gb`）的 GPU。
+2. 按可用显存降序排列。
+3. 平局处理：利用率升序。
+4. 再平局处理：温度升序。
+
+结果是一个 GPU 索引的排序列表。排名第一的 GPU 为"推荐"选项。推荐仅为建议。用户可以选择任何 GPU 索引，包括不满足最小显存要求的 GPU。系统在选择低于阈值的 GPU 时显示警告，但不阻止提交。
+
+#### 降级处理
+
+若 NVML 初始化失败（无 NVIDIA 驱动、无 GPU 或未找到库）：
+- GpuMonitor 返回空快照。
+- GPU 仪表盘显示清晰提示："未检测到 NVIDIA GPU。"
+- GPU 推荐返回空列表。
+- 任务提交正常进行，不附带 GPU 推荐或警告。
+
+### 6.8 ResultManager（结果管理器）
+
+`ResultManager` 在以下路径写入和跟踪输出：
 
 ```text
 data/jobs/
 ```
 
-Recommended structure:
+#### 每个任务的目录结构
 
 ```text
-data/jobs/
-  tasks/
-    <task_id>/
-      request.json
-      response.json
-      logs/
-      outputs/
+data/jobs/tasks/<task_id>/
+├── request.json          # 输入负载（提交时保存）
+├── response.json         # 输出元数据（完成时保存）
+├── logs/
+│   ├── submission.log    # 任务创建日志
+│   └── completion.log    # 任务完成日志
+└── outputs/              # 模型专属输出文件
+    ├── result.png        # 示例：图片输出
+    ├── result.srt        # 示例：字幕输出
+    └── result.txt        # 示例：文本输出
 ```
 
-Result files may include text, images, audio, subtitles, or service-specific artifacts. The WebUI stores paths in SQLite and provides download or preview links where applicable.
+#### SQLite 中的结果路径
 
-### 5.9 Adapter Layer
+`tasks` 表的 `result_paths` 列保存一个 JSON 数组，内容为相对于 `data/jobs/tasks/<task_id>/` 的路径。例如：
 
-The adapter layer isolates WebUI logic from model-specific APIs.
+```json
+["outputs/result.png", "outputs/result.txt"]
+```
 
-Base adapter responsibilities:
+#### 清理
 
-- Validate request payload.
-- Select target service URL.
-- Attach target GPU preference if the service supports it.
-- Submit task to service.
-- Poll or receive task status.
-- Normalize response metadata.
-- Store result paths through `ResultManager`.
-- Translate service errors into user-facing messages.
+第一阶段不实现自动清理。管理员可手动删除 `data/jobs/` 中的内容。`TaskScheduler` 不引用已被删除的文件。
 
-Phase-one adapters are placeholders. They must implement the interface and return clear `not implemented` or `service not configured` messages rather than pretending to support inference.
+### 6.9 适配器层
 
-## 6. Data Flow
+适配器层将 WebUI 逻辑与模型专属 API 隔离。
 
-### 6.1 Service Start Flow
+#### 基础适配器接口
 
-1. User opens Service Manager.
-2. WebUI loads service records from `config/services.yaml`.
-3. User clicks Start for a service.
-4. `ProcessManager` resolves command, working directory, environment, and GPU assignment.
-5. Service process starts.
-6. `HealthChecker` probes the configured health endpoint.
-7. Service status changes to `running` or `unhealthy`.
-8. WebUI displays status and recent logs.
+```python
+class BaseModelAdapter(ABC):
+    @abstractmethod
+    def model_type(self) -> str:
+        """返回唯一标识符，与 service.model_type 匹配。"""
+    
+    @abstractmethod
+    async def validate(self, payload: dict) -> list[str]:
+        """返回校验错误列表（空列表 = 校验通过）。"""
+    
+    @abstractmethod
+    async def submit(
+        self,
+        service_url: str,
+        payload: dict,
+        target_gpu: list[int] | None,
+    ) -> str:
+        """提交任务，返回任务 ID 或服务侧引用。"""
+    
+    @abstractmethod
+    async def poll_status(self, service_url: str, task_ref: str) -> dict:
+        """轮询任务完成状态。返回 {'status': ..., 'result': ..., 'error': ...}。"""
+```
 
-### 6.2 Configuration Save Flow
+#### 第一阶段占位行为
 
-1. User edits service configuration in the WebUI.
-2. `ConfigService` validates the configuration.
-3. If invalid, WebUI shows validation errors and does not save.
-4. If valid, WebUI writes a temporary YAML file.
-5. Temporary file is validated by loading it back.
-6. Temporary file replaces the original YAML file.
-7. `ServiceRegistry` reloads the service definitions.
-8. WebUI displays saved state.
+所有四个占位适配器实现该接口但行为相同：
 
-### 6.3 Task Submission Flow
+```python
+async def submit(self, service_url, payload, target_gpu):
+    raise NotImplementedError(
+        f"{self.model_type()} 适配器当前为占位状态。"
+        "模型推理功能将在未来阶段实现。"
+        "请在服务管理标签页中配置并启动一个兼容的服务。"
+    )
+```
 
-1. User opens a model page or task submission panel.
-2. User selects model/service and optional target GPU.
-3. WebUI shows current GPU recommendations and warnings.
-4. User submits task.
-5. `TaskScheduler` writes a queued task to SQLite.
-6. Adapter validates payload and service availability.
-7. If service is online, adapter submits the request to the service HTTP API.
-8. Task status updates to `running`.
-9. Result paths and final status are persisted.
-10. WebUI displays task result or failure message.
+这确保 WebUI、任务队列、配置和服务管理可以在没有真实模型推理的情况下进行端到端测试。用户会看到清晰提示，而不是静默失败。
 
-### 6.4 GPU Recommendation Flow
+#### Stable Diffusion 适配器说明
 
-1. `GpuMonitor` refreshes GPU metrics.
-2. Scheduler receives task requirements such as model type and optional memory estimate.
-3. Recommendation engine ranks GPUs.
-4. WebUI displays recommended GPU and alternatives.
-5. User may accept recommendation or manually select another GPU.
-6. Selected GPU is stored with the task and passed to the service adapter.
+Stable Diffusion 适配器设计为后端无关（不绑定 A1111、ComfyUI 或 Diffusers）。第二阶段将支持可插拔后端。第一阶段占位保留以下字段：
 
-## 7. Error Handling
+- `prompt`（str，提示词）
+- `negative_prompt`（str, 可选，反向提示词）
+- `width`、`height`（int，宽度/高度）
+- `steps`（int，采样步数）
+- `cfg_scale`（float，CFG 缩放）
+- `seed`（int，-1 表示随机）
+- `batch_size`（int，批次大小）
+- `target_gpu`（list[int]，目标 GPU）
 
-### Configuration Errors
+这些字段在适配器中已记录，但第一阶段不生效。
 
-- Invalid YAML: show parse error and do not save.
-- Missing required service fields: show field-level validation errors.
-- Duplicate service ID: reject save.
-- Invalid port or URL: reject save.
-- Invalid command path: reject save or show service start failure.
+### 6.10 日志
 
-### Service Errors
+#### 架构
 
-- Service fails to start: show command, working directory, and recent log excerpt.
-- Service exits unexpectedly: mark service as stopped/unhealthy and keep logs.
-- Health check fails: mark service unhealthy but keep last known status.
-- Service endpoint returns non-2xx: store response body summary in task error.
+WebUI 使用 Python 标准 `logging` 模块，所有核心组件采用统一的日志格式。
 
-### Task Errors
+#### 日志文件
 
-- Offline service: warn before submission; if user proceeds, task remains queued or fails with clear message.
-- Invalid payload: fail fast with field-level validation.
-- Adapter not implemented: return a clear message that the model adapter is reserved for a later phase.
-- Result write failure: mark task failed and include storage path error.
-- GPU unavailable: warn user and allow manual override unless the service rejects the request.
+| 组件 | 路径 | 用途 |
+|------|------|------|
+| WebUI 应用 | `data/logs/webui.log` | 应用级事件、错误、用户操作 |
+| 核心服务 | `data/logs/core.log` | ConfigService、ProcessManager、HealthChecker、Scheduler |
+| GPU 监控 | `data/logs/gpu.log` | GPU 指标采集和推荐事件 |
+| 服务日志 | `data/logs/services/<service_id>/<timestamp>.log` | 被托管模型服务进程的 stdout/stderr |
 
-### User-Facing Error Format
+#### 日志格式
 
-Errors shown in the WebUI should include:
+```
+2026-06-08 10:15:30,123 [INFO] [core.process_manager] 已启动服务 sd-webui (进程 PID 4731)
+2026-06-08 10:15:35,456 [WARN] [core.health_checker] 服务 qwen3-asr 不健康：连接被拒绝
+2026-06-08 10:16:01,789 [ERROR] [adapters.stable_diffusion] 占位适配器的 submit 被调用——未实现
+```
 
-- Short summary.
-- Affected service or task ID.
-- Action taken by the system.
-- Suggested next step.
-- Link or button to view logs when available.
+#### 轮转
 
-## 8. Testing Strategy
+通过 `logging.handlers.RotatingFileHandler` 实现，在 `config/webui.yaml` 中配置：
 
-Phase-one tests should avoid requiring real AI model inference.
+```yaml
+logging:
+  level: "INFO"
+  max_mb_per_file: 10
+  backup_count: 5
+```
 
-### Unit Tests
+#### WebUI 日志查看器
 
-- YAML validation and safe save.
-- Service registry loading.
-- Service ID uniqueness validation.
-- GPU recommendation ranking.
-- Task state transitions.
-- Result path generation.
-- Adapter request validation.
-- Error message normalization.
+服务管理标签页包含每个托管服务的日志查看面板（最后 50 行）。核心日志可通过仪表盘上的"查看系统日志"按钮访问。
 
-### Integration Tests
+## 7. 数据流
 
-- Start a mock HTTP service from configuration.
-- Health check mock service.
-- Stop and restart mock service.
-- Submit a task to a mock service.
-- Persist task history in SQLite.
-- Verify result files are written under `data/jobs/`.
+### 7.1 服务启动流程
 
-### Manual Test Checklist
+1. 用户打开服务管理页面。
+2. WebUI 从 `config/services.yaml` 加载服务记录。
+3. 用户点击某个服务的"启动"按钮。
+4. `ProcessManager` 解析命令、工作目录、环境和 GPU 分配。
+5. 服务进程启动。
+6. `HealthChecker` 探测配置的健康端点。
+7. 服务状态变为 `running` 或 `unhealthy`。
+8. WebUI 显示状态和最近的日志。
 
-- Open WebUI from a LAN browser.
-- View service list and GPU dashboard.
-- Add or edit a service configuration.
-- Save invalid configuration and confirm it is rejected.
-- Start a mock service.
-- Confirm health status updates.
-- Stop and restart the service.
-- Submit a task to a placeholder adapter and confirm clear not-implemented behavior.
-- Confirm logs and task history are visible.
-- Confirm result directory structure is created.
+### 7.2 配置保存流程
 
-## 9. First-Phase Milestones
+1. 用户打开配置标签页。
+2. WebUI 将当前 YAML 加载到编辑器。
+3. 用户修改字段并点击保存。
+4. `ConfigService` 根据 schema 规则校验配置。
+5. 校验失败：WebUI 显示字段级错误信息，不保存。
+6. 校验通过：WebUI 写入临时 YAML 文件（`config/services.yaml.tmp`）。
+7. 重新加载临时文件进行一致性检查。
+8. 通过 `os.rename()` 原子替换原文件（Linux 上原子操作）。
+9. `ServiceRegistry` 重新加载服务定义。
+10. WebUI 显示保存成功和更新后的状态。
 
-### Milestone 1: Project Skeleton
+### 7.3 任务提交流程
 
-- Create project structure.
-- Add configuration directory.
-- Add data directories.
-- Add core package layout.
-- Add dependency files.
-- Add basic README usage notes.
+1. 用户打开模型页面或任务提交面板。
+2. 用户选择模型/服务和可选的目标 GPU。
+3. WebUI 显示当前 GPU 推荐和警告。
+4. 用户提交任务。
+5. `TaskScheduler` 将排队中任务写入 SQLite。
+6. 适配器校验负载和服务可用性。
+7. 如果服务在线，适配器向服务 HTTP API 提交请求。
+8. 任务状态更新为 `running`。
+9. 结果路径和最终状态持久化。
+10. WebUI 显示任务结果或失败信息。
 
-### Milestone 2: Configuration and Service Registry
+### 7.4 GPU 推荐流程
 
-- Define `config/services.yaml`.
-- Implement `ConfigService`.
-- Implement `ServiceRegistry`.
-- Add validation for service definitions.
-- Add WebUI configuration editor.
+1. `GpuMonitor` 刷新 GPU 指标。
+2. 调度器接收任务需求（如模型类型和可选的显存预估）。
+3. 推荐引擎对 GPU 排序。
+4. WebUI 显示推荐 GPU 和备选方案。
+5. 用户可选择接受推荐或手动选择其他 GPU。
+6. 选定的 GPU 随任务存储并传递给服务适配器。
 
-### Milestone 3: Service Management
+## 8. 错误处理
 
-- Implement `ProcessManager`.
-- Implement start, stop, restart.
-- Capture logs.
-- Add service status table in WebUI.
-- Add health checking.
+### 配置错误
 
-### Milestone 4: Task Queue and Result Storage
+- YAML 解析错误：显示解析错误信息，不保存。
+- 缺少必填服务字段：显示字段级校验错误。
+- 服务 ID 重复：拒绝保存。
+- 端口或 URL 不合法：拒绝保存。
+- 命令路径不合法：拒绝保存，或显示服务启动失败。
 
-- Initialize SQLite schema.
-- Implement task creation and status updates.
-- Add task history UI.
-- Implement `ResultManager`.
-- Store request/response metadata under `data/jobs/`.
+### 服务错误
 
-### Milestone 5: GPU Monitor and Recommendation
+- 服务启动失败：显示命令、工作目录和最近的日志片段。
+- 服务意外退出：标记为已停止/不健康，保留日志。
+- 健康检查失败：标记服务不健康，但保留上次已知状态。
+- 服务端点返回非 2xx：将响应体摘要保存到任务错误信息中。
 
-- Collect NVIDIA GPU metrics.
-- Display GPU dashboard.
-- Rank GPUs by available memory, utilization, and temperature.
-- Let user manually override recommended GPU.
+### 任务错误
 
-### Milestone 6: Adapter Placeholders
+- 离线服务：提交前警告；如果用户继续，任务保持排队状态或以清晰消息标识失败。
+- 无效负载：快速失败，提供字段级校验。
+- 适配器未实现：返回清晰消息，说明模型适配器已为后续阶段预留。
+- 结果写入失败：标记任务失败，包含存储路径错误。
+- GPU 不可用：警告用户，允许手动覆盖，除非服务拒绝请求。
 
-- Define base adapter interface.
-- Add placeholder adapters for Stable Diffusion, Qwen3ASR, WhisperX, and FastWhisper.
-- Return clear not-implemented messages for unsupported model logic.
-- Preserve service URL and task metadata for future implementation.
+### 面向用户的错误信息格式
 
-### Milestone 7: First-Phase Verification
+WebUI 中显示的错误应包含：
 
-- Run automated tests.
-- Run mock service integration tests.
-- Verify LAN access to WebUI.
-- Verify service start/stop/restart.
-- Verify configuration persistence.
-- Verify task persistence.
-- Verify GPU dashboard.
+- 简短摘要
+- 受影响的服务或任务 ID
+- 系统已采取的操作
+- 建议的下一步操作
+- 可查看日志的链接或按钮（如适用）
 
-## 10. Future Evolution Toward Phase Two
+## 9. 测试策略
 
-Phase two should move from placeholder adapters to real HTTP model services.
+第一阶段测试应避免需要真实的 AI 模型推理。
 
-Recommended phase-two work:
+### 单元测试
 
-- Define a stable model service HTTP API.
-- Implement Stable Diffusion adapter for a selected backend.
-- Research and implement Qwen3ASR HTTP service.
-- Research and implement WhisperX HTTP service.
-- Research and implement FastWhisper HTTP service.
-- Add service logs streaming.
-- Add task cancellation.
-- Add per-model configuration forms.
-- Add optional Docker Compose deployment.
-- Add authentication if LAN exposure requires it.
+- YAML 校验和安全保存
+- 服务注册中心加载
+- 服务 ID 唯一性校验
+- GPU 推荐排序
+- 任务状态转换
+- 结果路径生成
+- 适配器请求校验
+- 错误信息规范化
 
-## 11. Open Decisions
+### 集成测试
 
-- Python environment strategy: venv, conda, or containerized services.
-- Stable Diffusion backend selection.
-- Qwen3ASR service extraction strategy.
-- WhisperX and FastWhisper implementation sources.
-- Whether future workflow orchestration should be internal to the WebUI or external to it.
+- 从配置文件启动模拟 HTTP 服务
+- 对模拟服务进行健康检查
+- 停止和重启模拟服务
+- 向模拟服务提交任务
+- 在 SQLite 中持久化任务历史
+- 验证结果文件写入 `data/jobs/`
 
-These open decisions are intentionally outside phase one. The phase-one architecture keeps them isolated behind service configuration, process management, and adapter interfaces.
+### 手动测试清单
+
+- 从局域网浏览器打开 WebUI
+- 查看服务列表和 GPU 仪表盘
+- 添加或编辑服务配置
+- 保存无效配置并确认被拒绝
+- 启动模拟服务
+- 确认健康状态更新
+- 停止并重启服务
+- 向占位适配器提交任务，确认清晰的未实现提示
+- 确认日志和任务历史可见
+- 确认结果目录结构已创建
+
+## 10. 第一阶段里程碑
+
+### 里程碑 1：项目骨架
+
+- 按第 5 节定义创建项目目录结构。
+- 添加 `config/` 和 `data/` 目录并放置 `.gitkeep` 文件。
+- 在 `webui/`、`core/`、`adapters/` 下创建核心包布局。
+- 定义 `pyproject.toml`（项目元数据）。
+- 编写 README 快速入门说明。
+- 实现 CLI 入口点：`python main.py`（或通过 `pip install -e .` 使用 `webui` 命令）。
+
+#### CLI 入口点
+
+```text
+用法: main.py [-h] [--host HOST] [--port PORT] [--config CONFIG] [--log-level LEVEL]
+
+Gradio 统一 AI WebUI
+
+可选参数:
+  -h, --help            显示此帮助信息并退出
+  --host HOST           绑定地址（默认: 0.0.0.0）
+  --port PORT           监听端口（默认: 7860）
+  --config CONFIG       配置目录（默认: config/）
+  --log-level LEVEL     日志级别: DEBUG, INFO, WARNING, ERROR（默认: INFO）
+```
+
+CLI 参数优先于 `config/webui.yaml` 中对应的设置。
+
+#### Python 依赖（pyproject.toml）
+
+```toml
+[project]
+name = "gradio-universal-webui"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+dependencies = [
+    "gradio>=5.0",
+    "pyyaml>=6.0",
+    "nvidia-ml-py>=12.0",       # GPU 监控的 NVML 绑定
+    "aiohttp>=3.9",              # 健康检查和任务提交的异步 HTTP 客户端
+    "aiosqlite>=0.20",           # 异步 SQLite 访问
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+```
+
+### 里程碑 2：配置和服务注册中心
+
+- 定义 `config/services.yaml`
+- 实现 `ConfigService`
+- 实现 `ServiceRegistry`
+- 添加服务定义校验
+- 添加 WebUI 配置编辑器
+
+### 里程碑 3：服务管理
+
+- 实现 `ProcessManager`
+- 实现启动、停止、重启
+- 采集日志
+- 在 WebUI 中添加服务状态表
+- 添加健康检查
+
+### 里程碑 4：任务队列和结果存储
+
+- 初始化 SQLite 表结构
+- 实现任务创建和状态更新
+- 添加任务历史界面
+- 实现 `ResultManager`
+- 在 `data/jobs/` 下存储请求/响应元数据
+
+### 里程碑 5：GPU 监控和推荐
+
+- 采集 NVIDIA GPU 指标
+- 显示 GPU 仪表盘
+- 按可用显存、利用率和温度对 GPU 排序
+- 允许用户手动覆盖推荐 GPU
+
+### 里程碑 6：适配器占位
+
+- 定义基础适配器接口
+- 为 Stable Diffusion、Qwen3ASR、WhisperX 和 FastWhisper 添加占位适配器
+- 对不支持的模型逻辑返回清晰的未实现消息
+- 预留服务 URL 和任务元数据供后续实现使用
+
+### 里程碑 7：第一阶段验证
+
+- 运行自动化测试
+- 运行模拟服务集成测试
+- 验证局域网访问 WebUI
+- 验证服务启动/停止/重启
+- 验证配置持久化
+- 验证任务持久化
+- 验证 GPU 仪表盘
+
+## 11. 向第二阶段演进
+
+第二阶段应将占位适配器升级为真实的 HTTP 模型服务。
+
+推荐的第二阶段工作：
+
+- 定义稳定的模型服务 HTTP API
+- 为选定后端实现 Stable Diffusion 适配器
+- 研究和实现 Qwen3ASR HTTP 服务
+- 研究和实现 WhisperX HTTP 服务
+- 研究和实现 FastWhisper HTTP 服务
+- 添加服务日志流式传输
+- 添加任务取消功能
+- 添加每个模型的配置表单
+- 添加可选的 Docker Compose 部署
+- 若对外开放局域网，添加认证功能
+
+## 12. 开放决策
+
+- Python 环境策略：venv、conda 还是容器化服务
+- Stable Diffusion 后端选型
+- Qwen3ASR 服务抽取策略
+- WhisperX 和 FastWhisper 实现来源
+- 未来的工作流编排应在 WebUI 内部实现还是外部实现
+
+以上开放决策故意放在第一阶段之外。第一阶段架构通过服务配置、进程管理和适配器接口将这些决策隔离。
