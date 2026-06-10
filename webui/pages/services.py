@@ -2,13 +2,15 @@
 
 import gradio as gr
 from core import registry, process_manager, scheduler
+from webui.components.service_table import build_service_table_html
+from webui.components.error_display import format_error_message
 
 
 def create_page(app_state: gr.State) -> gr.HTML:
     """创建服务管理标签页。"""
     gr.Markdown("## 服务管理")
 
-    # 服务状态表（由顶层刷新）
+    # ── 服务状态表（由顶层刷新）──
     service_table = gr.HTML("加载中...")
 
     gr.Markdown("---")
@@ -16,37 +18,45 @@ def create_page(app_state: gr.State) -> gr.HTML:
 
     with gr.Row():
         service_selector = gr.Dropdown(
-            label="选择服务",
-            choices=[],
-            interactive=True,
-            scale=2,
+            label="选择服务", choices=[], interactive=True, scale=2,
         )
-        btn_start = gr.Button("启动", variant="primary", scale=1, min_width=80)
-        btn_stop = gr.Button("停止", variant="stop", scale=1, min_width=80)
-        btn_restart = gr.Button("重启", variant="secondary", scale=1, min_width=80)
+        btn_start = gr.Button("▶ 启动", variant="primary", scale=1, min_width=80)
+        btn_stop = gr.Button("⏹ 停止", variant="stop", scale=1, min_width=80)
+        btn_restart = gr.Button("🔄 重启", variant="secondary", scale=1, min_width=80)
 
-    # 停止确认对话框（默认隐藏）
     confirm_stop_html = gr.HTML(visible=False)
     with gr.Row():
         btn_confirm_stop = gr.Button(
-            "确认停止", variant="stop", visible=False, scale=1
+            "⚠️ 确认停止", variant="stop", visible=False, scale=1,
         )
         btn_cancel_stop = gr.Button(
-            "取消", variant="secondary", visible=False, scale=1
+            "取消", variant="secondary", visible=False, scale=1,
         )
 
     status_msg = gr.Textbox(label="操作结果", interactive=False)
 
+    # ── 日志查看（带自动刷新）──
     gr.Markdown("---")
     gr.Markdown("### 服务日志")
+
+    with gr.Row():
+        log_info = gr.Markdown("")
+        log_auto_refresh = gr.Checkbox(
+            label="自动刷新 (2s)", value=False, scale=0,
+        )
+
     log_viewer = gr.Textbox(
-        label="日志 (最后 50 行)", lines=10, interactive=False
+        label="日志 (最后 50 行)", lines=12, interactive=False,
+        max_lines=20,
     )
+
+    # 日志自动刷新 Timer
+    log_timer = gr.Timer(value=2)
 
     # ── 从 app_state 刷新服务表 ──
     def refresh_from_state(state):
         svc_list = state.get("services", [])
-        html = _build_service_table(svc_list)
+        html = build_service_table_html(svc_list)
         choices = [
             (s.get("display_name", s.get("id", "")), s.get("id", ""))
             for s in svc_list
@@ -100,51 +110,57 @@ def create_page(app_state: gr.State) -> gr.HTML:
         outputs=status_msg,
     )
 
-    # 选择服务时自动加载日志
+    # ── 选择服务时加载日志 ──
+    def on_select_service(service_id):
+        if not service_id:
+            return "(选择服务后查看日志)", ""
+        log = process_manager.tail_log(service_id, lines=50)
+
+        # 获取日志文件信息
+        files = process_manager.list_log_files(service_id)
+        if files:
+            latest = files[0]
+            info = (
+                f"📄 {latest['filename']} | "
+                f"{latest['lines']} 行 | "
+                f"最后更新: {latest['modified'][:19]}"
+            )
+        else:
+            info = "*(无日志文件)*"
+        return log, info
+
     service_selector.change(
-        fn=_on_select_service,
+        fn=on_select_service,
         inputs=service_selector,
-        outputs=log_viewer,
+        outputs=[log_viewer, log_info],
+    )
+
+    # ── 日志自动刷新 ──
+    def refresh_log(service_id, auto_refresh):
+        if not auto_refresh or not service_id:
+            return gr.update(), gr.update()
+        log = process_manager.tail_log(service_id, lines=50)
+        files = process_manager.list_log_files(service_id)
+        if files:
+            info = f"🔄 自动刷新中 | 📄 {files[0]['filename']} | {files[0]['lines']} 行"
+        else:
+            info = "🔄 自动刷新中 | *(无日志文件)*"
+        return log, info
+
+    log_timer.tick(
+        fn=refresh_log,
+        inputs=[service_selector, log_auto_refresh],
+        outputs=[log_viewer, log_info],
     )
 
     return service_table
-
-
-def _build_service_table(svc_list):
-    lines = [
-        "<table border='1' cellpadding='6' "
-        "style='border-collapse:collapse; width:100%'>",
-        "<tr><th>ID</th><th>名称</th><th>类型</th>"
-        "<th>状态</th><th>GPU</th><th>URL</th></tr>",
-    ]
-    status_map = {
-        "running": "🟢 运行中", "stopped": "⚪ 已停止",
-        "starting": "🔵 启动中", "unhealthy": "🟡 不健康",
-        "stopping": "🔵 停止中", "exited": "🔴 已退出",
-    }
-    for s in svc_list:
-        status_display = status_map.get(
-            s.get("runtime_state", ""), s.get("runtime_state", "")
-        )
-        gpu_list = s.get("gpu_assignment", []) or []
-        gpu_str = ",".join(map(str, gpu_list)) if gpu_list else "不限"
-        url_str = s.get("service_url", "") or "(未配置)"
-        lines.append(
-            f"<tr><td>{s.get('id', '')}</td>"
-            f"<td>{s.get('display_name', '')}</td>"
-            f"<td>{s.get('model_type', '')}</td>"
-            f"<td>{status_display}</td>"
-            f"<td>{gpu_str}</td><td>{url_str}</td></tr>"
-        )
-    lines.append("</table>")
-    return "".join(lines)
 
 
 def _on_service_action(service_id: str, action: str):
     if not service_id:
         return "请先选择一个服务"
     getattr(process_manager, action)(service_id)
-    return f"已提交 {action} 请求: {service_id}"
+    return f"✅ 已提交 {action} 请求: {service_id}"
 
 
 def _on_stop_click(service_id: str):
@@ -158,8 +174,11 @@ def _on_stop_click(service_id: str):
     if running_tasks:
         return [
             gr.update(
-                value=f"<div style='color:orange'>⚠️ 服务 {service_id} 有 "
-                f"{len(running_tasks)} 个运行中的任务。停止将中断这些任务。</div>",
+                value=format_error_message(
+                    f"服务有 {len(running_tasks)} 个运行中的任务",
+                    service_id=service_id,
+                    suggestion="停止将中断这些任务。请确认后再操作。",
+                ),
                 visible=True,
             ),
             "",
@@ -170,14 +189,7 @@ def _on_stop_click(service_id: str):
         _on_service_action(service_id, "stop")
         return [
             gr.update(visible=False),
-            f"已提交停止请求: {service_id}",
+            f"✅ 已提交停止请求: {service_id}",
             gr.update(visible=False),
             gr.update(visible=False),
         ]
-
-
-def _on_select_service(service_id: str):
-    if not service_id:
-        return "(选择服务后查看日志)"
-    log = process_manager.tail_log(service_id)
-    return log
