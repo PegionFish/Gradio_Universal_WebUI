@@ -51,8 +51,13 @@ class TestGpuMetrics:
 
 
 class TestGpuMonitorDegraded:
-    """验收标准 1: initialize 在无 NVIDIA GPU 环境下降级不抛异常。"""
+    """验收标准 1: initialize 在无 NVIDIA GPU 环境下降级不抛异常。
 
+    使用 @patch.dict('sys.modules', {'pynvml': None}) 模拟 pynvml 未安装，
+    确保测试在有无 GPU 的机器上行为一致（import pynvml → None → AttributeError → 降级）。
+    """
+
+    @patch.dict("sys.modules", {"pynvml": None})
     def test_initialize_degraded(self):
         monitor = GpuMonitor()
         monitor.initialize()
@@ -69,6 +74,7 @@ class TestGpuMonitorDegraded:
                 pass
             # 即使 initialize 失败，monitor 不应崩溃
 
+    @patch.dict("sys.modules", {"pynvml": None})
     def test_get_latest_on_degraded(self):
         monitor = GpuMonitor()
         monitor.initialize()
@@ -76,12 +82,14 @@ class TestGpuMonitorDegraded:
         assert metrics.available is False
         assert metrics.snapshots == []
 
+    @patch.dict("sys.modules", {"pynvml": None})
     def test_recommend_on_degraded(self):
         monitor = GpuMonitor()
         monitor.initialize()
         assert monitor.recommend() == []
         assert monitor.recommend(min_memory_gb=4) == []
 
+    @patch.dict("sys.modules", {"pynvml": None})
     def test_shutdown_degraded(self):
         monitor = GpuMonitor()
         monitor.initialize()
