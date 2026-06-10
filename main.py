@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("适配器已注册")
 
     # 5. 启动后台线程
-    from core import process_manager, health_checker, gpu_monitor, config
+    from core import process_manager, health_checker, gpu_monitor, config, system_monitor
 
     process_manager.start_worker()
     process_manager.start_watcher()
@@ -109,7 +109,8 @@ def main(argv: list[str] | None = None) -> int:
     # 启动事件缓冲区（订阅所有 EventBus 事件）
     from core.ws_bridge import get_buffer
     get_buffer()
-    logger.info("后台线程已启动 (ProcessManager, HealthChecker, GpuMonitor, EventBuffer)")
+    system_monitor.start(interval_seconds=30)
+    logger.info("后台线程已启动 (ProcessManager, HealthChecker, GpuMonitor, SystemMonitor, EventBuffer)")
 
     # 6. 自动启动 enabled 服务
     from core import registry

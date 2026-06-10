@@ -8,6 +8,7 @@ from core.health_checker import HealthChecker
 from core.task_scheduler import TaskScheduler
 from core.result_manager import ResultManager
 from core.gpu_monitor import GpuMonitor
+from core.system_monitor import SystemMonitor
 
 # 模块级变量，在 main.py 的 setup_core() 中初始化
 # 后台线程和 WebUI 页面通过 from core import registry, config 引用这些变量。
@@ -19,11 +20,12 @@ health_checker: HealthChecker = None   # type: ignore[assignment]
 scheduler: TaskScheduler = None        # type: ignore[assignment]
 result_mgr: ResultManager = None       # type: ignore[assignment]
 gpu_monitor: GpuMonitor = None         # type: ignore[assignment]
+system_monitor: SystemMonitor = None   # type: ignore[assignment]
 
 
 def setup_core(config_dir: str = "config/") -> None:
     """初始化所有核心服务。由 main.py 在启动序列步骤 3 中调用。"""
-    global config, registry, process_manager, health_checker, scheduler, result_mgr, gpu_monitor
+    global config, registry, process_manager, health_checker, scheduler, result_mgr, gpu_monitor, system_monitor
     config = ConfigService(config_dir)
     registry = ServiceRegistry()
     process_manager = ProcessManager()
@@ -31,6 +33,7 @@ def setup_core(config_dir: str = "config/") -> None:
     scheduler = TaskScheduler(db_path="data/tasks.sqlite3")
     result_mgr = ResultManager(base_dir="data/jobs/")
     gpu_monitor = GpuMonitor()
+    system_monitor = SystemMonitor()
 
 
 __all__ = [
@@ -47,5 +50,6 @@ __all__ = [
     "scheduler",
     "result_mgr",
     "gpu_monitor",
+    "system_monitor",
     "setup_core",
 ]
