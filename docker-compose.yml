@@ -108,6 +108,33 @@ services:
       - full
 
   # ═══════════════════════════════════════════════════════
+  # Qwen3 ASR 流式服务 (vLLM backend, 实时转录)
+  # 镜像来源: Qwen3-ASR-Stream-Docker
+  # ═══════════════════════════════════════════════════════
+  qwen3-stream:
+    image: qwen3_asr_stream:${QWEN3_STREAM_TAG:-dsx001}
+    container_name: gradio-qwen3-stream
+    ports:
+      - "${QWEN3_STREAM_PORT:-8000}:8000"
+    volumes:
+      - ./data/qwen3-stream:/data/shared/Qwen3-ASR  # 流式服务 demo 脚本和数据目录
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    profiles:
+      - gpu
+      - asr
+      - streaming
+      - full
+
+  # ═══════════════════════════════════════════════════════
   # WhisperX 服务
   # ═══════════════════════════════════════════════════════
   whisperx:
@@ -182,4 +209,6 @@ volumes:
   whisperx_models:
     driver: local
   fw_models:
+    driver: local
+  qwen3_stream_data:
     driver: local
