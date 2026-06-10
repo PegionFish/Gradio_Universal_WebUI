@@ -36,6 +36,10 @@ echo.
 :: 3 秒后自动打开浏览器
 start "" /b cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:7860"
 
+:: 绕过本地代理（避免 HTTP_PROXY 干扰 localhost 连接）
+set NO_PROXY=127.0.0.1,localhost
+set no_proxy=127.0.0.1,localhost
+
 :: 启动 WebUI
 python main.py --host 127.0.0.1 --port 7860
 
