@@ -20,20 +20,12 @@ def create_page(app_state: gr.State) -> gr.HTML:
         gr.Markdown("> **⚠️ 适配器未注册。**")
         return gr.HTML("")
 
-    # 检测是真实适配器还是占位
-    try:
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(
-            adapter.submit("http://localhost", {"prompt": "test"})
-        )
-        loop.close()
-    except NotImplementedError:
-        gr.Markdown(
-            "> **ℹ️ Stable Diffusion 适配器已就绪。** 配置并启动 SD 服务后即可使用。"
-            "启动方式: `python services/stable_diffusion_service.py --port 17860`"
-        )
-    except Exception:
-        pass
+    # 所有适配器在 Phase 4 均为真实 HTTP 客户端实现，无需 HTTP 探活
+    # 服务可用性由后台 HealthChecker 线程持续探测，启动时无需预检
+    gr.Markdown(
+        "> **ℹ️ Stable Diffusion 适配器已就绪。** 配置并启动 SD 服务后即可使用。\n"
+        "> 启动方式: `python services/stable_diffusion_service.py --port 17860`"
+    )
 
     svc_list = registry.get_by_model_type("stable-diffusion")
     service_choices = [(s.display_name, s.id) for s in svc_list]

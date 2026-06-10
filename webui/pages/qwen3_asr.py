@@ -17,28 +17,16 @@ def create_page(app_state: gr.State) -> gr.HTML:
     """创建 Qwen3 ASR 模型入口标签页。"""
     gr.Markdown("## 🎙️ Qwen3 ASR 语音识别")
 
-    # 检查适配器
+    # Phase 4 所有适配器均为真实 HTTP 客户端实现，无需 HTTP 探活
+    # 服务可用性由后台 HealthChecker 线程持续探测
     try:
         adapter = get_adapter("qwen3-asr")
-        is_placeholder = isinstance(adapter.submit, type(lambda: None))
-        # 检测是否是占位实现：尝试调用会抛出 NotImplementedError
-        try:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
-                adapter.submit("http://localhost", {"audio_path": "/dev/null"})
-            )
-            loop.close()
-        except NotImplementedError:
-            is_placeholder = True
-        except Exception:
-            is_placeholder = False
     except ValueError:
         gr.Markdown("> **⚠️ 适配器未注册。** 请检查适配器模块加载。")
         return gr.HTML("")
 
-    if is_placeholder:
-        gr.Markdown("""
-        > **ℹ️ Qwen3 ASR 适配器已就绪。** 配置并启动 Qwen3ASR 服务后，即可使用音频转录功能。
+    gr.Markdown("""
+    > **ℹ️ Qwen3 ASR 适配器已就绪。** 配置并启动 Qwen3ASR 服务后，即可使用音频转录功能。
         >
         > **快速开始：**
         > 1. 在<em>服务管理</em>标签页添加一个 `qwen3-asr` 类型的服务
