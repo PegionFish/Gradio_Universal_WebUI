@@ -2,13 +2,14 @@
 
 import datetime
 import gradio as gr
-from core import registry, scheduler, gpu_monitor
+from core import registry, scheduler, gpu_monitor, system_monitor
 from webui.pages import (
     dashboard,
     services,
     tasks,
     gpu as gpu_page,
     config,
+    system,
     stable_diffusion,
     qwen3_asr,
     whisperx,
@@ -22,6 +23,9 @@ footer {display: none !important;}
 
 
 def create_app() -> gr.Blocks:
+    # 注入 system_monitor 引用到页面
+    from webui.pages import system as system_page
+    system_page.set_monitor(system_monitor)
     """组装 Gradio 应用。
 
     状态架构：
@@ -115,6 +119,9 @@ def create_app() -> gr.Blocks:
 
             with gr.TabItem("配置", elem_id="tab-config", id="config"):
                 config_block = config.create_page(app_state)
+
+            with gr.TabItem("系统健康", elem_id="tab-system", id="system"):
+                system_block = system.create_page(app_state)
 
             with gr.TabItem("Stable Diffusion", elem_id="tab-sd", id="sd"):
                 sd_block = stable_diffusion.create_page(app_state)
