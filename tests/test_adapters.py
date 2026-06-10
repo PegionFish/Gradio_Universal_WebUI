@@ -72,11 +72,11 @@ class TestAdapterRegistration:
         assert adapter.model_type() == "custom-type"
 
 
-class TestPlaceholderAdapters:
-    """验收标准 2-3: model_type 正确、submit 抛出 NotImplementedError。"""
+class TestAllAdapters:
+    """验收标准 2-3: model_type 正确、真实适配器验证。Phase 3 全部为真实实现。"""
 
     @pytest.fixture
-    def adapters(self):
+    def all_adapters(self):
         return {
             "stable-diffusion": get_adapter("stable-diffusion"),
             "qwen3-asr": get_adapter("qwen3-asr"),
@@ -84,27 +84,31 @@ class TestPlaceholderAdapters:
             "fastwhisper": get_adapter("fastwhisper"),
         }
 
-    def test_model_types_correct(self, adapters):
+    def test_model_types_correct(self, all_adapters):
         expected = {
             "stable-diffusion": "stable-diffusion",
             "qwen3-asr": "qwen3-asr",
             "whisperx": "whisperx",
             "fastwhisper": "fastwhisper",
         }
-        for key, adapter in adapters.items():
+        for key, adapter in all_adapters.items():
             assert adapter.model_type() == expected[key]
 
-    def test_submit_raises_not_implemented(self, adapters):
-        import asyncio
-        for key, adapter in adapters.items():
-            with pytest.raises(NotImplementedError):
-                asyncio.run(adapter.submit("http://localhost", {}))
+    def test_all_adapters_have_real_submit(self, all_adapters):
+        """Phase 3: 所有适配器的 submit 不再抛出 NotImplementedError。"""
+        import inspect
+        for key, adapter in all_adapters.items():
+            source = inspect.getsource(adapter.submit)
+            assert "raise NotImplementedError" not in source, (
+                f"{key} adapter is still a placeholder"
+            )
 
-    def test_poll_status_returns_unknown(self, adapters):
+    def test_all_adapters_have_poll_status(self, all_adapters):
         import asyncio
-        for adapter in adapters.values():
+        for adapter in all_adapters.values():
             result = asyncio.run(adapter.poll_status("http://localhost", "t"))
-            assert result["status"] == "unknown"
+            assert "status" in result
+            assert isinstance(result["status"], str)
 
 
 class TestStableDiffusionValidate:
@@ -123,9 +127,17 @@ class TestStableDiffusionValidate:
         assert len(errors) == 1
         assert "prompt" in errors[0].lower()
 
-    def test_other_adapters_no_validation_by_default(self):
+    def test_other_adapters_have_audio_validation(self):
         import asyncio
-        for mt in ("qwen3-asr", "whisperx", "fastwhisper"):
+        # Phase 3: WhisperX and FastWhisper now both validate audio field
+        for mt in ("whisperx", "fastwhisper"):
             adapter = get_adapter(mt)
             errors = asyncio.run(adapter.validate({}))
-            assert errors == []  # 默认无校验错误
+            assert len(errors) >= 1  # 需要 audio 字段
+
+    def test_qwen3_asr_has_validation(self):
+        """Qwen3ASR 真实适配器有输入校验。"""
+        import asyncio
+        adapter = get_adapter("qwen3-asr")
+        errors = asyncio.run(adapter.validate({}))
+        assert len(errors) >= 1  # 需要 audio 字段
