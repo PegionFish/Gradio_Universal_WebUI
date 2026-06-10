@@ -103,37 +103,37 @@ def create_app() -> gr.Blocks:
         refresh_timer = gr.Timer(value=5)
         refresh_timer.tick(refresh_global_state, outputs=app_state)
 
-        # ── 标签页结构 ──
+        # ── 标签页结构（6 个标签页）──
         with gr.Tabs(elem_id="main-tabs"):
+            # 仪表盘 = 仪表盘概览 + GPU 监控 + 系统健康
             with gr.TabItem("仪表盘", elem_id="tab-dashboard", id="dashboard"):
-                dashboard_html = dashboard.create_page(app_state)
+                gr.Markdown("## 仪表盘")
+                dashboard.create_page(app_state)
+                gr.Markdown("---")
+                gpu_page.create_page(app_state)
+                gr.Markdown("---")
+                system.create_page(app_state)
 
-            with gr.TabItem("服务管理", elem_id="tab-services", id="services"):
-                services_block = services.create_page(app_state)
-
-            with gr.TabItem("任务管理", elem_id="tab-tasks", id="tasks"):
-                tasks_block = tasks.create_page(app_state)
-
-            with gr.TabItem("GPU 监控", elem_id="tab-gpu", id="gpu"):
-                gpu_block = gpu_page.create_page(app_state)
-
+            # 配置 = YAML 编辑器 + 服务管理 + 任务管理
             with gr.TabItem("配置", elem_id="tab-config", id="config"):
-                config_block = config.create_page(app_state)
+                config.create_page(app_state)
+                gr.Markdown("---")
+                services.create_page(app_state)
+                gr.Markdown("---")
+                tasks.create_page(app_state)
 
-            with gr.TabItem("系统健康", elem_id="tab-system", id="system"):
-                system_block = system.create_page(app_state)
-
+            # 模型入口页（4 个，不变）
             with gr.TabItem("Stable Diffusion", elem_id="tab-sd", id="sd"):
-                sd_block = stable_diffusion.create_page(app_state)
+                stable_diffusion.create_page(app_state)
 
             with gr.TabItem("Qwen3 ASR", elem_id="tab-qwen3", id="qwen3"):
-                qwen3_block = qwen3_asr.create_page(app_state)
+                qwen3_asr.create_page(app_state)
 
             with gr.TabItem("WhisperX", elem_id="tab-whisperx", id="whisperx"):
-                whisperx_block = whisperx.create_page(app_state)
+                whisperx.create_page(app_state)
 
             with gr.TabItem("FastWhisper", elem_id="tab-fastwhisper", id="fastwhisper"):
-                fastwhisper_block = fastwhisper.create_page(app_state)
+                fastwhisper.create_page(app_state)
 
     return app
 
