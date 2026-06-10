@@ -1,0 +1,20 @@
+# WhisperX 服务的 Dockerfile
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 ffmpeg curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir whisperx torch
+
+COPY services/whisperx_service.py /app/service.py 2>/dev/null || true
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -sf http://localhost:${WHISPER_PORT:-8200}/health || exit 1
+
+EXPOSE 8200
+
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "/app/service.py", "--port", "${WHISPER_PORT:-8200}"]

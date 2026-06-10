@@ -1,0 +1,185 @@
+# ============================================================
+# Gradio Universal AI WebUI — Docker Compose 编排
+# ============================================================
+# 启动全部服务: docker compose up -d
+# 仅启动 WebUI:  docker compose up -d webui
+# 查看日志:      docker compose logs -f webui
+# 停止全部:      docker compose down
+
+version: "3.9"
+
+services:
+  # ═══════════════════════════════════════════════════════
+  # WebUI 主控台
+  # ═══════════════════════════════════════════════════════
+  webui:
+    build: .
+    image: gradio-webui:${WEBUI_TAG:-latest}
+    container_name: gradio-webui
+    ports:
+      - "${WEBUI_PORT:-7860}:7860"
+    volumes:
+      - ./config:/app/config:ro
+      - webui_data:/app/data
+      - ./services:/app/services:ro
+    environment:
+      - WEBUI_AUTH_TOKEN=${WEBUI_AUTH_TOKEN:-}
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_ANALYTICS_ENABLED=false
+    depends_on:
+      qwen3-asr:
+        condition: service_started
+        required: false
+      sd-service:
+        condition: service_started
+        required: false
+      whisperx:
+        condition: service_started
+        required: false
+      fastwhisper:
+        condition: service_started
+        required: false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7860/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ═══════════════════════════════════════════════════════
+  # Stable Diffusion 服务
+  # ═══════════════════════════════════════════════════════
+  sd-service:
+    build:
+      context: .
+      dockerfile: services/Dockerfile.sd
+    image: gradio-webui-sd:${SD_TAG:-latest}
+    container_name: gradio-sd
+    ports:
+      - "${SD_PORT:-17860}:17860"
+    volumes:
+      - sd_models:/models
+      - sd_outputs:/app/data/jobs
+    environment:
+      - SD_BACKEND=${SD_BACKEND:-diffusers}
+      - SD_MODEL_ID=${SD_MODEL_ID:-runwayml/stable-diffusion-v1-5}
+      - SD_DEVICE=${SD_DEVICE:-cuda:0}
+      - SD_PORT=17860
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - gpu
+      - full
+
+  # ═══════════════════════════════════════════════════════
+  # Qwen3 ASR 服务
+  # ═══════════════════════════════════════════════════════
+  qwen3-asr:
+    build:
+      context: .
+      dockerfile: services/Dockerfile.qwen3
+    image: gradio-webui-qwen3:${QWEN3_TAG:-latest}
+    container_name: gradio-qwen3
+    ports:
+      - "${QWEN3_PORT:-8100}:8100"
+    volumes:
+      - qwen3_models:/models
+    environment:
+      - ASR_CHECKPOINT=${QWEN3_CHECKPOINT:-/models/qwen3-asr}
+      - ASR_DEVICE=${QWEN3_DEVICE:-cuda:0}
+      - ASR_PORT=8100
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - gpu
+      - asr
+      - full
+
+  # ═══════════════════════════════════════════════════════
+  # WhisperX 服务
+  # ═══════════════════════════════════════════════════════
+  whisperx:
+    build:
+      context: .
+      dockerfile: services/Dockerfile.whisperx
+    image: gradio-webui-whisperx:${WHISPERX_TAG:-latest}
+    container_name: gradio-whisperx
+    ports:
+      - "${WHISPERX_PORT:-8200}:8200"
+    volumes:
+      - whisperx_models:/models
+    environment:
+      - WHISPER_MODEL=${WHISPERX_MODEL:-large-v3}
+      - WHISPER_DEVICE=${WHISPERX_DEVICE:-cuda:0}
+      - WHISPER_PORT=8200
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - gpu
+      - asr
+      - full
+
+  # ═══════════════════════════════════════════════════════
+  # FastWhisper 服务 (CTranslate2)
+  # ═══════════════════════════════════════════════════════
+  fastwhisper:
+    build:
+      context: .
+      dockerfile: services/Dockerfile.fastwhisper
+    image: gradio-webui-fastwhisper:${FW_TAG:-latest}
+    container_name: gradio-fastwhisper
+    ports:
+      - "${FW_PORT:-8300}:8300"
+    volumes:
+      - fw_models:/models
+    environment:
+      - FW_MODEL=${FW_MODEL:-large-v3}
+      - FW_DEVICE=${FW_DEVICE:-cuda:0}
+      - FW_PORT=8300
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - gpu
+      - asr
+      - full
+
+# ═══════════════════════════════════════════════════════
+# 持久化数据卷
+# ═══════════════════════════════════════════════════════
+volumes:
+  webui_data:
+    driver: local
+  sd_models:
+    driver: local
+  sd_outputs:
+    driver: local
+  qwen3_models:
+    driver: local
+  whisperx_models:
+    driver: local
+  fw_models:
+    driver: local

@@ -1,0 +1,23 @@
+# Stable Diffusion 服务的 Dockerfile
+# 构建: docker build -f services/Dockerfile.sd -t gradio-webui-sd:latest .
+
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx libglib2.0-0 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml .
+RUN pip install --no-cache-dir diffusers torch accelerate transformers
+
+COPY services/stable_diffusion_service.py /app/service.py
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -sf http://localhost:${SD_PORT:-17860}/health || exit 1
+
+EXPOSE 17860
+
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "/app/service.py", "--port", "${SD_PORT:-17860}"]
