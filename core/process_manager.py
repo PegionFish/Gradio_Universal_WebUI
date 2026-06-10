@@ -231,6 +231,95 @@ class ProcessManager:
         log_path = os.path.join(log_dir, f"{timestamp}.log")
         return log_path
 
+    def list_log_files(self, service_id: str) -> list[dict]:
+        """列出服务的所有日志文件及元数据。
+
+        Returns:
+            [{"filename": "...", "path": "...", "size_bytes": int,
+              "modified": "ISO 8601", "lines": int}, ...]
+        """
+        import glob
+
+        log_dir = os.path.join("data/logs/services", service_id)
+        if not os.path.isdir(log_dir):
+            return []
+
+        log_files = sorted(
+            glob.glob(os.path.join(log_dir, "*.log")),
+            reverse=True,  # 最新在前
+        )
+
+        result = []
+        for path in log_files:
+            try:
+                stat = os.stat(path)
+                with open(path, "r", encoding="utf-8", errors="replace") as f:
+                    line_count = sum(1 for _ in f)
+                result.append({
+                    "filename": os.path.basename(path),
+                    "path": path,
+                    "size_bytes": stat.st_size,
+                    "modified": datetime.datetime.fromtimestamp(
+                        stat.st_mtime
+                    ).isoformat(),
+                    "lines": line_count,
+                })
+            except OSError:
+                continue
+        return result
+
+    def read_log_range(
+        self, service_id: str, offset: int = 0, limit: int = 100,
+    ) -> dict:
+        """从服务日志文件中读取指定范围的行。
+
+        Args:
+            service_id: 服务 ID
+            offset: 起始行号（0-based）
+            limit: 最大返回行数
+
+        Returns:
+            {"content": "...", "offset": int, "total_lines": int, "has_more": bool}
+            若无日志则返回 {"content": "(无日志)", ...}
+        """
+        import glob
+
+        log_dir = os.path.join("data/logs/services", service_id)
+        if not os.path.isdir(log_dir):
+            return {
+                "content": "(无日志)", "offset": 0,
+                "total_lines": 0, "has_more": False,
+            }
+
+        log_files = sorted(glob.glob(os.path.join(log_dir, "*.log")))
+        if not log_files:
+            return {
+                "content": "(无日志)", "offset": 0,
+                "total_lines": 0, "has_more": False,
+            }
+
+        latest = log_files[-1]
+        try:
+            with open(latest, "r", encoding="utf-8", errors="replace") as f:
+                all_lines = f.readlines()
+
+            total = len(all_lines)
+            start = max(0, offset)
+            end = min(total, start + limit)
+            chunk = "".join(all_lines[start:end])
+
+            return {
+                "content": chunk if chunk else "(日志为空)",
+                "offset": end,
+                "total_lines": total,
+                "has_more": end < total,
+            }
+        except OSError:
+            return {
+                "content": "(日志读取失败)", "offset": 0,
+                "total_lines": 0, "has_more": False,
+            }
+
     def tail_log(self, service_id: str, lines: int = 50) -> str:
         """返回服务日志的最后 N 行。由 WebUI 服务管理页面调用。"""
         import glob
