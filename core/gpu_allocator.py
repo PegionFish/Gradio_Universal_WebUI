@@ -147,6 +147,10 @@ class GpuAllocator:
     def _can_fit(self, gpu_index: int, required_gb: int) -> bool:
         """检查 GPU 是否能容纳额外的预留。"""
         from core import gpu_monitor
+
+        if gpu_monitor is None:
+            return True
+
         metrics = gpu_monitor.get_latest()
 
         if not metrics.available:

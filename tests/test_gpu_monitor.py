@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from core.gpu_monitor import (
     GpuMonitor, GpuSnapshot, GpuMetrics,
 )
+from core.gpu_allocator import GpuAllocator, GpuReservation
 
 
 class TestGpuSnapshot:
