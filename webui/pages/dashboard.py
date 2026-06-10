@@ -8,7 +8,7 @@ def create_page(app_state: gr.State) -> gr.HTML:
     dashboard_html = gr.HTML("加载中...")
 
     def on_select(state):
-        """标签页被选中时从 app_state 读取数据渲染。"""
+        """标签页被选中或 app_state 刷新时从 app_state 读取数据渲染。"""
         services = state.get("services", [])
         tasks = state.get("tasks", [])
         gpu = state.get("gpu_metrics", {"available": False, "snapshots": [], "updated_at": ""})
@@ -17,8 +17,8 @@ def create_page(app_state: gr.State) -> gr.HTML:
         total = len(services)
 
         parts = [
-            "<div style='padding:16px'>",
-            f"<p style='font-size:18px'><b>{running}/{total}</b> 个服务正在运行 | "
+            "<div style='padding:8px'>",
+            f"<p style='font-size:16px'><b>{running}/{total}</b> 个服务运行中 | "
             f"刷新于 {state.get('last_refresh', '')}</p>",
         ]
 
@@ -42,14 +42,22 @@ def create_page(app_state: gr.State) -> gr.HTML:
         parts.append("<h4>最近任务</h4>")
         if tasks:
             parts.append(
-                "<table border='1' cellpadding='4' style='border-collapse:collapse'>"
-                "<tr><th>ID</th><th>服务</th><th>状态</th><th>时间</th></tr>"
+                "<table style='border-collapse:collapse;width:100%;"
+                "border:1px solid rgba(128,128,128,0.15)'>"
+                "<tr style='background:rgba(128,128,128,0.06)'>"
+                "<th style='padding:6px 8px'>ID</th>"
+                "<th style='padding:6px 8px'>服务</th>"
+                "<th style='padding:6px 8px'>状态</th>"
+                "<th style='padding:6px 8px'>时间</th></tr>"
             )
             for t in tasks:
                 parts.append(
-                    f"<tr><td>{t['id'][:8]}...</td><td>{t.get('service_id', '')}</td>"
-                    f"<td>{t.get('status', '')}</td>"
-                    f"<td>{t.get('created_at', '')[:19]}</td></tr>"
+                    f"<tr>"
+                    f"<td style='padding:4px 8px'>{t['id'][:8]}...</td>"
+                    f"<td style='padding:4px 8px'>{t.get('service_id', '')}</td>"
+                    f"<td style='padding:4px 8px'>{t.get('status', '')}</td>"
+                    f"<td style='padding:4px 8px'>{t.get('created_at', '')[:19]}</td>"
+                    f"</tr>"
                 )
             parts.append("</table>")
         else:
@@ -69,13 +77,20 @@ def create_page(app_state: gr.State) -> gr.HTML:
                 )
         else:
             parts.append(
-                "<p style='color:#888'>未检测到 NVIDIA GPU。GPU 监控功能不可用。</p>"
+                "<p style='opacity:0.7'>未检测到 NVIDIA GPU。GPU 监控功能不可用。</p>"
             )
 
         parts.append("</div>")
         return gr.update(value="".join(parts))
 
-    # 标签页选中时刷新
-    dashboard_html.select(on_select, inputs=app_state, outputs=dashboard_html)
+    # 全局状态变更时自动刷新（由顶层 gr.Timer 驱动，每 5 秒触发）
+    app_state.change(fn=on_select, inputs=app_state, outputs=dashboard_html)
+
+    # 初始渲染 — 使用空状态避免空白
+    dashboard_html.value = on_select({
+        "services": [], "tasks": [],
+        "gpu_metrics": {"available": False, "snapshots": [], "updated_at": ""},
+        "last_refresh": "",
+    })["value"]
 
     return dashboard_html

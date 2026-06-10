@@ -24,8 +24,8 @@ def build_progress_bar(progress: float, label: str = "") -> str:
     pct_text = f"{progress:.0f}%"
     return (
         f"<div style='margin:8px 0'>"
-        f"{f'<span style=font-size:12px;color:#666>{label}</span>' if label else ''}"
-        f"<div style='background:#eee;height:20px;border-radius:10px;overflow:hidden;"
+        f"{f'<span style=font-size:12px;opacity:0.7>{label}</span>' if label else ''}"
+        f"<div style='background:rgba(128,128,128,0.15);height:20px;border-radius:10px;overflow:hidden;"
         f"margin-top:4px'>"
         f"<div style='background:{color};height:20px;width:{progress}%;"
         f"border-radius:10px;transition:width 0.3s;display:flex;"
@@ -92,7 +92,7 @@ def build_task_timeline(task: dict) -> str:
         events.append(("🔄 重试", f"第 {retry} 次"))
 
     if not events:
-        return "<p style='color:#888'>无时间线数据</p>"
+        return "<p style='opacity:0.7'>无时间线数据</p>"
 
     parts = ["<div style='position:relative;padding-left:24px'>"]
     for i, (label, time) in enumerate(events):
@@ -100,7 +100,7 @@ def build_task_timeline(task: dict) -> str:
         dot_color = "#4caf50" if is_last else "#2196f3"
         line = "" if is_last else (
             f"<div style='position:absolute;left:6px;top:16px;"
-            f"width:2px;height:24px;background:#ddd'></div>"
+            f"width:2px;height:24px;background:rgba(128,128,128,0.15)'></div>"
         )
         parts.append(
             f"<div style='position:relative;padding:4px 0'>"
@@ -108,7 +108,7 @@ def build_task_timeline(task: dict) -> str:
             f"width:12px;height:12px;border-radius:50%;background:{dot_color}'></div>"
             f"{line}"
             f"<span style='font-weight:600'>{label}</span> "
-            f"<span style='color:#888;font-size:12px'>{time}</span>"
+            f"<span style='opacity:0.7;font-size:12px'>{time}</span>"
             f"</div>"
         )
     parts.append("</div>")

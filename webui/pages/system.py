@@ -28,14 +28,14 @@ def create_page(app_state: gr.State) -> gr.HTML:
     def refresh():
         if _monitor is None:
             return gr.update(
-                value="<p style='color:#888;text-align:center;padding:20px'>"
+                value="<p style='opacity:0.7;text-align:center;padding:20px'>"
                 "系统监控未初始化。请安装 psutil: pip install psutil</p>"
             )
 
         metrics = _monitor.get_latest()
         if not metrics.available:
             return gr.update(
-                value="<div style='text-align:center;padding:40px;color:#888'>"
+                value="<div style='text-align:center;padding:40px;opacity:0.7'>"
                 "<p style='font-size:40px'>🖥️</p>"
                 "<h3>系统监控不可用</h3>"
                 "<p>请安装 psutil: pip install psutil</p></div>"
@@ -52,7 +52,7 @@ def create_page(app_state: gr.State) -> gr.HTML:
                 icon = "🔴" if a["level"] == "critical" else "🟡"
                 parts.append(
                     f"<div style='border-left:4px solid {level_color};"
-                    f"background:#fff;padding:8px 12px;margin:4px 0;"
+                    f"background:rgba(128,128,128,0.04);padding:8px 12px;margin:4px 0;"
                     f"border-radius:4px'>{icon} {a['message']}</div>"
                 )
             parts.append("</div>")
@@ -75,7 +75,7 @@ def create_page(app_state: gr.State) -> gr.HTML:
 
             if cpu.load_avg_1min > 0:
                 parts.append(
-                    f"<p style='font-size:12px;color:#888'>"
+                    f"<p style='font-size:12px;opacity:0.7'>"
                     f"Load avg: {cpu.load_avg_1min:.1f} / "
                     f"{cpu.load_avg_5min:.1f} / {cpu.load_avg_15min:.1f}</p>"
                 )
@@ -98,7 +98,7 @@ def create_page(app_state: gr.State) -> gr.HTML:
             parts.append(build_progress_bar(mem.percent_used, ""))
             if mem.swap_total_gb > 0:
                 parts.append(
-                    f"<p style='font-size:12px;color:#888'>"
+                    f"<p style='font-size:12px;opacity:0.7'>"
                     f"SWAP: {mem.swap_used_gb:.1f} / {mem.swap_total_gb:.1f} GB</p>"
                 )
 
@@ -119,13 +119,16 @@ def create_page(app_state: gr.State) -> gr.HTML:
             parts.append(build_progress_bar(disk.percent_used, ""))
 
         parts.append(
-            f"<p style='color:#aaa;font-size:11px;text-align:right;margin-top:8px'>"
+            f"<p style='opacity:0.5;font-size:11px;text-align:right;margin-top:8px'>"
             f"更新于 {metrics.updated_at[:19]}</p>"
         )
         parts.append("</div>")
         return gr.update(value="".join(parts))
 
     refresh_btn.click(fn=refresh, outputs=system_status)
+
+    # 全局状态变更时自动刷新（由顶层 gr.Timer 驱动，每 5 秒触发）
+    app_state.change(fn=refresh, outputs=system_status)
 
     # 初次加载
     system_status.value = refresh()["value"]

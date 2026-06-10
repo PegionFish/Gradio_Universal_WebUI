@@ -14,7 +14,7 @@ def build_gpu_cards_html(gpu_metrics: dict) -> str:
     """
     if not gpu_metrics.get("available"):
         return (
-            "<div style='padding:40px;text-align:center;color:#888'>"
+            "<div style='padding:40px;text-align:center;opacity:0.7'>"
             "<p style='font-size:48px'>🎮</p>"
             "<h3>未检测到 NVIDIA GPU</h3>"
             "<p>GPU 监控功能不可用。请确认 NVIDIA 驱动和 NVML 库已安装。</p>"
@@ -24,7 +24,7 @@ def build_gpu_cards_html(gpu_metrics: dict) -> str:
     snapshots = gpu_metrics.get("snapshots", [])
     if not snapshots:
         return (
-            "<div style='text-align:center;padding:20px;color:#888'>"
+            "<div style='text-align:center;padding:20px;opacity:0.7'>"
             "<p>无 GPU 数据。正在采集...</p></div>"
         )
 
@@ -45,8 +45,8 @@ def build_gpu_cards_html(gpu_metrics: dict) -> str:
         temp_color = "#4caf50" if temp < 65 else "#f0a500" if temp < 85 else "#e74c3c"
 
         cards.append(
-            f"""<div style="border:1px solid #e0e0e0;border-radius:12px;
-padding:16px;margin:8px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.08);
+            f"""<div style="border:1px solid rgba(128,128,128,0.2);border-radius:12px;
+padding:16px;margin:8px;background:rgba(128,128,128,0.04);box-shadow:0 1px 3px rgba(0,0,0,0.08);
 width:calc(33% - 24px);min-width:300px;display:inline-block;vertical-align:top;">
 <h4 style="margin:0 0 12px 0;font-size:16px">
   GPU {s.get('gpu_index', '?')}: {s.get('name', 'Unknown')}
@@ -54,7 +54,7 @@ width:calc(33% - 24px);min-width:300px;display:inline-block;vertical-align:top;"
 <table style="width:100%;font-size:13px">
 <tr><td style="padding:4px 0">显存</td>
   <td style="text-align:right">{s.get('memory_used_mb', 0)} / {s.get('memory_total_mb', 0)} MiB
-  <div style="background:#eee;height:6px;border-radius:3px;margin-top:2px">
+  <div style="background:rgba(128,128,128,0.15);height:6px;border-radius:3px;margin-top:2px">
     <div style="background:{mem_bar_color};height:6px;border-radius:3px;
       width:{mem_pct}%"></div></div>
   </td></tr>
@@ -72,7 +72,7 @@ width:calc(33% - 24px);min-width:300px;display:inline-block;vertical-align:top;"
     updated = gpu_metrics.get("updated_at", "")[:19]
     return (
         "".join(cards)
-        + f"<p style='color:#aaa;font-size:11px;text-align:right;margin-top:8px'>"
+        + f"<p style='opacity:0.5;font-size:11px;text-align:right;margin-top:8px'>"
         f"更新于 {updated}</p>"
     )
 
@@ -102,11 +102,11 @@ def build_recommendation_html(gpu_metrics: dict, min_memory_gb: int) -> str:
         有序列表 HTML
     """
     if not gpu_metrics.get("available"):
-        return "<p style='color:#888'>GPU 监控不可用。</p>"
+        return "<p style='opacity:0.7'>GPU 监控不可用。</p>"
 
     snapshots = gpu_metrics.get("snapshots", [])
     if not snapshots:
-        return "<p style='color:#888'>无 GPU 数据。</p>"
+        return "<p style='opacity:0.7'>无 GPU 数据。</p>"
 
     min_mib = min_memory_gb * 1024
     eligible = [s for s in snapshots if s.get("memory_free_mb", 0) >= min_mib]
