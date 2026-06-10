@@ -20,6 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--log-level", default=None,
                         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
                         help="Log level (default: INFO)")
+    parser.add_argument("--auth", default=None,
+                        help="Auth token (empty=disable auth, default: from WEBUI_AUTH_TOKEN env)")
     return parser
 
 
@@ -61,6 +63,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     logger.info("WebUI 启动 (host=%s, port=%s, config=%s)", args.host, args.port, config_dir)
 
+    # 2b. 初始化认证系统
+    token = args.auth or os.environ.get("WEBUI_AUTH_TOKEN", "")
+    from core.auth import setup_auth
+    setup_auth(token)
+    if token:
+        logger.info("认证已启用")
+    else:
+        logger.info("认证未启用（LAN 开放模式）")
+
     # 3. 初始化核心服务
     from core import setup_core
     setup_core(config_dir=config_dir)
@@ -95,7 +106,10 @@ def main(argv: list[str] | None = None) -> int:
     gpu_monitor.start(
         interval_seconds=config.get_refresh_setting("gpu_metrics_seconds", 5)
     )
-    logger.info("后台线程已启动 (ProcessManager, HealthChecker, GpuMonitor)")
+    # 启动事件缓冲区（订阅所有 EventBus 事件）
+    from core.ws_bridge import get_buffer
+    get_buffer()
+    logger.info("后台线程已启动 (ProcessManager, HealthChecker, GpuMonitor, EventBuffer)")
 
     # 6. 自动启动 enabled 服务
     from core import registry
