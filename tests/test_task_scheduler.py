@@ -211,3 +211,81 @@ class TestGetRunningTasks:
         running = scheduler.get_running_tasks("s1")
         assert len(running) == 1
         assert running[0]["id"] == sid1
+
+
+class TestRetryTask:
+    """Phase 3: 任务重试功能。"""
+
+    def test_retry_resets_to_queued(self, scheduler):
+        task_id = scheduler.create_task("s", "m", "a", {}, max_retries=3)
+        scheduler.update_task_status(task_id, "failed",
+                                      error_summary="Test error")
+        result = scheduler.retry_task(task_id)
+        assert result is True
+        task = scheduler.get_task(task_id)
+        assert task["status"] == "queued"
+        assert task["retry_count"] == 1
+
+    def test_retry_exceeds_max(self, scheduler):
+        task_id = scheduler.create_task("s", "m", "a", {}, max_retries=1)
+        scheduler.update_task_status(task_id, "failed")
+        scheduler.retry_task(task_id)  # 第 1 次成功
+        # 再次失败
+        scheduler.update_task_status(task_id, "failed")
+        result = scheduler.retry_task(task_id)  # 超过 max_retries=1
+        assert result is False
+
+    def test_auto_retry_failed(self, scheduler):
+        t1 = scheduler.create_task("s1", "m", "a", {}, max_retries=2)
+        t2 = scheduler.create_task("s1", "m", "a", {}, max_retries=2)
+        t3 = scheduler.create_task("s1", "m", "a", {}, max_retries=0)
+        scheduler.update_task_status(t1, "failed")
+        scheduler.update_task_status(t2, "failed")
+        scheduler.update_task_status(t3, "failed")
+
+        count = scheduler.auto_retry_failed(service_id="s1")
+        assert count == 2  # t1, t2 (t3 max_retries=0 不重试)
+
+    def test_retry_clears_error(self, scheduler):
+        task_id = scheduler.create_task("s", "m", "a", {}, max_retries=3)
+        scheduler.update_task_status(task_id, "failed",
+                                      error_summary="err", error_detail="det")
+        scheduler.retry_task(task_id)
+        task = scheduler.get_task(task_id)
+        assert task["error_summary"] is None
+        assert task["error_detail"] is None
+
+
+class TestCancelRunningTask:
+    """Phase 3: 运行中任务取消。"""
+
+    def test_cancel_updates_status(self, scheduler):
+        task_id = scheduler.create_task("s", "m", "a", {})
+        scheduler.update_task_status(task_id, "running")
+        scheduler.cancel_task(task_id)
+        task = scheduler.get_task(task_id)
+        assert task["status"] == "cancelled"
+        assert "用户取消" in (task.get("error_summary") or "")
+
+    def test_cancel_all_service_tasks(self, scheduler):
+        for _ in range(3):
+            scheduler.create_task("s1", "m", "a", {})
+        count = scheduler.cancel_all_service_tasks("s1")
+        assert count == 3
+        remaining = scheduler.list_tasks(service_id="s1", status="queued")
+        assert len(remaining) == 0
+
+
+class TestTaskStats:
+    """Phase 3: 任务统计。"""
+
+    def test_get_stats(self, scheduler):
+        t1 = scheduler.create_task("s1", "m", "a", {})
+        t2 = scheduler.create_task("s1", "m", "a", {})
+        scheduler.update_task_status(t1, "running")
+        scheduler.update_task_status(t2, "completed")
+
+        stats = scheduler.get_stats(service_id="s1")
+        assert stats["running"] == 1
+        assert stats["completed"] == 1
+        assert stats["queued"] == 0
