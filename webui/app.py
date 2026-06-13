@@ -14,6 +14,7 @@ from webui.pages import (
     qwen3_asr,
     whisperx,
     fastwhisper,
+    waifu2x,
 )
 
 CSS = """
@@ -134,6 +135,9 @@ def create_app() -> gr.Blocks:
 
             with gr.TabItem("FastWhisper", elem_id="tab-fastwhisper", id="fastwhisper"):
                 fastwhisper.create_page(app_state)
+
+            with gr.TabItem("Waifu2x", elem_id="tab-waifu2x", id="waifu2x"):
+                waifu2x.create_page(app_state)
 
     return app
 
