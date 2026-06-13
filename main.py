@@ -93,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     import adapters.qwen3_asr        # noqa: F401
     import adapters.whisperx         # noqa: F401
     import adapters.fastwhisper      # noqa: F401
+    import adapters.waifu2x          # noqa: F401
     logger.info("适配器已注册")
 
     # 5. 启动后台线程
