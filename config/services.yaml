@@ -1,1 +1,15 @@
-services: []
+services:
+  - id: waifu2x
+    display_name: "Waifu2x 超分"
+    model_type: "waifu2x"
+    enabled: false
+    gpu:
+      min_memory_gb: 2
+      assignment: []
+    service_url: "http://localhost:17900"
+    health_endpoint: "/health"
+    start:
+      command: "python services/waifu2x_service.py --port 17900"
+      working_dir: "."
+      env: {}
+      stop_timeout_seconds: 30

@@ -1,10 +1,10 @@
 # Gradio Universal WebUI
 
-基于 Gradio 的统一 AI 前端套件 — 一站式管理本地 AI 负载。支持 Stable Diffusion、Qwen3 ASR、WhisperX、FastWhisper 四大模型服务。
+基于 Gradio 的统一 AI 前端套件 — 一站式管理本地 AI 负载。支持 Stable Diffusion、Qwen3 ASR、WhisperX、FastWhisper、Waifu2x 五大模型服务。
 
 ## 项目状态
 
-**Phase 1-4 全部完成** · 36 次提交 · 177 tests · 100% pass
+**Phase 1-4 全部完成** · 37+ 次提交 · 188+ tests · 100% pass
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
@@ -52,7 +52,7 @@ WEBUI_AUTH_TOKEN=my-token python main.py       # 环境变量
 | Stable Diffusion | 17860 | `python services/stable_diffusion_service.py --port 17860` |
 | Qwen3 ASR | 8100 | `python services/qwen3_asr_service.py --port 8100 --checkpoint /path/to/model` |
 | WhisperX | 8200 | whisperx 库 + `/v1/transcribe` 端点 |
-| FastWhisper | 8300 | faster-whisper (CTranslate2) 后端 |
+| Waifu2x | 17900 | `python services/waifu2x_service.py --port 17900` |
 
 ### 命令行参数
 
@@ -70,12 +70,12 @@ python main.py [选项]
 运行测试：
 
 ```bash
-pytest          # 177 tests
+pytest          # 188+ tests
 ```
 
 ## 功能概览
 
-### WebUI 标签页（10 个）
+### WebUI 标签页（11 个）
 
 | 标签页 | 功能 |
 |--------|------|
@@ -89,6 +89,7 @@ pytest          # 177 tests
 | **Qwen3 ASR** | 音频转录、语种选择、SRT 字幕 |
 | **WhisperX** | 转录 + 说话人识别 + 词级时间戳 |
 | **FastWhisper** | CTranslate2 极速转录 + VAD |
+| **Waifu2x** | 图片超分辨率放大（mock 模式） |
 
 #### 配置示例 (`config/services.yaml`)
 
@@ -166,7 +167,7 @@ Gradio_Universal_WebUI/
 │   ├── logging_setup.py             # 日志初始化 + 轮转
 │   └── service_record.py            # 服务记录数据类
 ├── webui/                           # Gradio UI
-│   ├── app.py                       # 应用组装 (10 标签页)
+│   ├── app.py                       # 应用组装 (11 标签页)
 │   ├── state.py                     # 共享状态单例
 │   ├── pages/                       # 页面文件
 │   │   ├── dashboard.py             # 仪表盘
@@ -179,7 +180,8 @@ Gradio_Universal_WebUI/
 │   │   ├── stable_diffusion.py      # SD 模型入口
 │   │   ├── qwen3_asr.py             # Qwen3 ASR 模型入口
 │   │   ├── whisperx.py              # WhisperX 模型入口
-│   │   └── fastwhisper.py           # FastWhisper 模型入口
+│   │   ├── fastwhisper.py           # FastWhisper 模型入口
+│   │   └── waifu2x.py               # Waifu2x 模型入口
 │   └── components/                  # 可复用组件
 │       ├── service_table.py          # 服务状态表
 │       ├── task_list.py              # 任务列表
@@ -192,12 +194,14 @@ Gradio_Universal_WebUI/
 │   ├── stable_diffusion.py          # SD HTTP 客户端
 │   ├── qwen3_asr.py                 # Qwen3ASR HTTP 客户端
 │   ├── whisperx.py                  # WhisperX HTTP 客户端
-│   └── fastwhisper.py               # FastWhisper HTTP 客户端
+│   ├── fastwhisper.py               # FastWhisper HTTP 客户端
+│   └── waifu2x.py                   # Waifu2x HTTP 客户端
 ├── services/                        # 模型服务包装器
 │   ├── qwen3_asr_service.py         # Qwen3ASR HTTP API
 │   ├── stable_diffusion_service.py  # SD HTTP API
+│   ├── waifu2x_service.py           # Waifu2x HTTP API
 │   └── Dockerfile.*                 # 各服务 Dockerfile
-├── tests/                           # 测试 (177 tests, 100% pass)
+├── tests/                           # 测试 (188+ tests, 100% pass)
 │   ├── conftest.py                  # 共享 fixtures
 │   ├── test_config_service.py
 │   ├── test_service_registry.py
@@ -208,6 +212,7 @@ Gradio_Universal_WebUI/
 │   ├── test_gpu_monitor.py
 │   ├── test_result_manager.py
 │   ├── test_adapters.py
+│   ├── test_waifu2x*.py
 │   ├── test_auth.py
 │   └── test_ws_bridge.py
 └── docs/                            # 设计文档
@@ -222,7 +227,7 @@ Gradio_Universal_WebUI/
 - **持久化**: SQLite (WAL 模式) + 文件系统
 - **异步**: aiohttp + asyncio 事件循环
 - **容器化**: Docker + Compose (5 服务编排)
-- **测试**: pytest + pytest-asyncio (177 tests)
+- **测试**: pytest + pytest-asyncio (188+ tests)
 - **认证**: 令牌会话 + url-safe session ID
 
 ## 环境变量
