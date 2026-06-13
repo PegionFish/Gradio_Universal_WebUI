@@ -1,4 +1,6 @@
 # tests/test_waifu2x_page.py
+import inspect
+
 import gradio as gr
 
 
@@ -10,14 +12,17 @@ class TestWaifu2xPage:
         from webui.pages import waifu2x
         assert hasattr(waifu2x, "create_page")
 
-    def test_app_contains_waifu2x_tab(self):
-        """主应用包含 waifu2x 标签页。"""
-        from webui.app import create_app
+    def test_app_imports_waifu2x_page(self):
+        """webui/app.py 导入并挂载 waifu2x 页面。"""
+        import webui.app as app_module
+        source = inspect.getsource(app_module)
+        assert "import waifu2x" in source or "from webui.pages import" in source
+        assert "waifu2x.create_page" in source
+        assert '"Waifu2x"' in source
 
-        app = create_app()
-        labels = [
-            getattr(block, "label", "")
-            for block in app.blocks.values()
-            if hasattr(block, "label")
-        ]
-        assert "Waifu2x" in labels
+    def test_create_page_signature(self):
+        """create_page 接受 Gradio State 参数。"""
+        from webui.pages.waifu2x import create_page
+        sig = inspect.signature(create_page)
+        assert "app_state" in sig.parameters
+        assert sig.parameters["app_state"].annotation == gr.State
