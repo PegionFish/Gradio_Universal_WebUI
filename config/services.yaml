@@ -13,3 +13,95 @@ services:
       working_dir: "."
       env: {}
       stop_timeout_seconds: 30
+
+  - id: rembg
+    display_name: "RemBg 背景移除"
+    model_type: "rembg"
+    enabled: true
+    gpu:
+      min_memory_gb: 1
+      assignment: []
+    service_url: "http://localhost:17920"
+    health_endpoint: "/health"
+    start:
+      command: "python services/rembg_service.py --port 17920 --models-dir ./models/rembg"
+      working_dir: "."
+      env: {}
+      stop_timeout_seconds: 30
+
+  - id: llm-translator
+    display_name: "LLM 翻译"
+    model_type: "llm-translator"
+    enabled: true
+    gpu:
+      min_memory_gb: 0
+      assignment: []
+    service_url: "http://localhost:17930"
+    health_endpoint: "/health"
+    start:
+      command: "python services/llm_translator_service.py --port 17930"
+      working_dir: "."
+      env: {}
+      stop_timeout_seconds: 30
+
+  - id: qwen3-tts
+    display_name: "Qwen3 TTS 语音合成"
+    model_type: "qwen3-tts"
+    enabled: false
+    gpu:
+      min_memory_gb: 3
+      assignment: []
+    service_url: "http://localhost:17910"
+    health_endpoint: "/health"
+    start:
+      command: "python services/qwen3_tts_service.py --port 17910 --models-dir ./models"
+      working_dir: "."
+      env: {}
+      stop_timeout_seconds: 60
+
+  - id: whisperx
+    display_name: "WhisperX 语音识别"
+    model_type: "whisperx"
+    enabled: false
+    gpu:
+      min_memory_gb: 3
+      assignment: []
+    service_url: "http://localhost:8200"
+    health_endpoint: "/health"
+    start:
+      command: "python services/whisperx_service.py --port 8200 --model large-v3"
+      working_dir: "."
+      env:
+        HF_HOME: "F:\\AI_Applications\\faster-whisper-offline\\models"
+      stop_timeout_seconds: 60
+
+  - id: fastwhisper
+    display_name: "FastWhisper 语音识别"
+    model_type: "fastwhisper"
+    enabled: false
+    gpu:
+      min_memory_gb: 2
+      assignment: []
+    service_url: "http://localhost:8300"
+    health_endpoint: "/health"
+    start:
+      command: "python services/fastwhisper_service.py --port 8300 --model large-v3"
+      working_dir: "."
+      env:
+        HF_HOME: "F:\\AI_Applications\\faster-whisper-offline\\models"
+      stop_timeout_seconds: 60
+
+  - id: qwen3-asr
+    display_name: "Qwen3 ASR 语音识别"
+    model_type: "qwen3-asr"
+    enabled: false
+    gpu:
+      min_memory_gb: 3
+      assignment: []
+    service_url: "http://localhost:8100"
+    health_endpoint: "/health"
+    start:
+      command: "python services/qwen3_asr_service.py --port 8100 --checkpoint F:\\AI_Applications\\Qwen3ASR\\qwen-asr-1.7B\\models\\models--Qwen--Qwen3-ASR-1.7B"
+      working_dir: "."
+      env: {}
+      stop_timeout_seconds: 60

@@ -15,6 +15,10 @@ from webui.pages import (
     whisperx,
     fastwhisper,
     waifu2x,
+    rembg,
+    llm_translator,
+    qwen3_tts,
+    settings,
 )
 
 CSS = """
@@ -104,7 +108,7 @@ def create_app() -> gr.Blocks:
         refresh_timer = gr.Timer(value=5)
         refresh_timer.tick(refresh_global_state, outputs=app_state)
 
-        # ── 标签页结构（6 个标签页）──
+        # ── 标签页结构 ──
         with gr.Tabs(elem_id="main-tabs"):
             # 仪表盘 = 仪表盘概览 + GPU 监控 + 系统健康
             with gr.TabItem("仪表盘", elem_id="tab-dashboard", id="dashboard"):
@@ -115,13 +119,16 @@ def create_app() -> gr.Blocks:
                 gr.Markdown("---")
                 system.create_page(app_state)
 
-            # 配置 = YAML 编辑器 + 服务管理 + 任务管理
+            # 配置 = 模型设置 + 服务管理 + 任务管理
             with gr.TabItem("配置", elem_id="tab-config", id="config"):
-                config.create_page(app_state)
+                settings.create_page(app_state)
                 gr.Markdown("---")
                 services.create_page(app_state)
                 gr.Markdown("---")
                 tasks.create_page(app_state)
+                gr.Markdown("---")
+                with gr.Accordion("高级：YAML 编辑器", open=False):
+                    config.create_page(app_state)
 
             # 模型入口页（4 个，不变）
             with gr.TabItem("Stable Diffusion", elem_id="tab-sd", id="sd"):
@@ -138,6 +145,15 @@ def create_app() -> gr.Blocks:
 
             with gr.TabItem("Waifu2x", elem_id="tab-waifu2x", id="waifu2x"):
                 waifu2x.create_page(app_state)
+
+            with gr.TabItem("RemBg", elem_id="tab-rembg", id="rembg"):
+                rembg.create_page(app_state)
+
+            with gr.TabItem("LLM 翻译", elem_id="tab-llm-translator", id="llm-translator"):
+                llm_translator.create_page(app_state)
+
+            with gr.TabItem("Qwen3 TTS", elem_id="tab-qwen3-tts", id="qwen3-tts"):
+                qwen3_tts.create_page(app_state)
 
     return app
 

@@ -94,6 +94,9 @@ def main(argv: list[str] | None = None) -> int:
     import adapters.whisperx         # noqa: F401
     import adapters.fastwhisper      # noqa: F401
     import adapters.waifu2x          # noqa: F401
+    import adapters.rembg            # noqa: F401
+    import adapters.llm_translator   # noqa: F401
+    import adapters.qwen3_tts        # noqa: F401
     logger.info("适配器已注册")
 
     # 5. 启动后台线程

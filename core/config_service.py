@@ -16,7 +16,10 @@ class ConfigService:
     """统一的 YAML 配置管理器。"""
 
     # 合法的模型类型
-    VALID_MODEL_TYPES = {"stable-diffusion", "qwen3-asr", "whisperx", "fastwhisper"}
+    VALID_MODEL_TYPES = {
+        "stable-diffusion", "qwen3-asr", "whisperx", "fastwhisper",
+        "waifu2x", "rembg", "llm-translator", "qwen3-tts",
+    }
 
     def __init__(self, config_dir: str = "config/"):
         self._config_dir = os.path.abspath(config_dir)
